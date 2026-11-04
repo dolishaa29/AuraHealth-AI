@@ -53,7 +53,7 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 
 async function getOverpassHospitals(lat, lng, radiusKm) {
   const radiusMeters = radiusKm * 1000;
-  const query = `[out:json][timeout:10];(node["amenity"="hospital"](around:${radiusMeters},${lat},${lng});way["amenity"="hospital"](around:${radiusMeters},${lat},${lng}););out center 40;`;
+  const query = `[out:json][timeout:10];(node["amenity"="hospital"](around:${radiusMeters},${lat},${lng});way["amenity"="hospital"](around:${radiusMeters},${lat},${lng}););out center 300;`;
 
   const response = await Promise.any(
     OVERPASS_ENDPOINTS.map((url) =>
@@ -73,9 +73,11 @@ async function getOverpassHospitals(lat, lng, radiusKm) {
 }
 
 // Fallback when every Overpass instance is down: Nominatim keyword search bounded to the search area.
-async function getNominatimHospitals(lat, lng, radiusKm) {
-  const dLat = radiusKm / 111;
-  const dLng = radiusKm / (111 * Math.cos((lat * Math.PI) / 180));
+// Nominatim ranks by importance, not distance, so a single wide box can miss the closest hospitals —
+// search a tight box around the user first, then the full radius, and merge.
+async function nominatimSearchBox(lat, lng, boxKm) {
+  const dLat = boxKm / 111;
+  const dLng = boxKm / (111 * Math.cos((lat * Math.PI) / 180));
   const response = await axios.get("https://nominatim.openstreetmap.org/search", {
     params: {
       q: "hospital",
@@ -96,6 +98,23 @@ async function getNominatimHospitals(lat, lng, radiusKm) {
       lon: parseFloat(p.lon),
       address: p.display_name.split(", ").slice(1, 4).join(", ") || null,
     }));
+}
+
+async function getNominatimHospitals(lat, lng, radiusKm) {
+  const boxes = [...new Set([Math.min(5, radiusKm), radiusKm])];
+  const seen = new Set();
+  const hospitals = [];
+  // Sequential on purpose: Nominatim's usage policy allows ~1 request/second.
+  for (const boxKm of boxes) {
+    for (const h of await nominatimSearchBox(lat, lng, boxKm)) {
+      const key = `${h.name}|${h.lat.toFixed(4)}|${h.lon.toFixed(4)}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        hospitals.push(h);
+      }
+    }
+  }
+  return hospitals;
 }
 
 async function getExternalHospitals(lat, lng, radiusKm) {
