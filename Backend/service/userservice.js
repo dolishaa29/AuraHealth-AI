@@ -100,7 +100,7 @@ exports.userlogin=async(req,res)=>
             msg: 'Your account is blocked by the admin. Login failed.' 
         });
     }
-    lpass=data.password;
+    let lpass=data.password;
     let pass=await bcrypt.compare(password,lpass);
     if(pass)
     {
@@ -111,7 +111,6 @@ exports.userlogin=async(req,res)=>
     else{
         res.status(400).json({msg:"invalid password"});
     }
-
 }
 catch(err)
 {

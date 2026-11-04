@@ -16,7 +16,7 @@ exports.handleReport = async (req, res) => {
       const title = req.file.originalname || "Untitled Report";
 
       const result = await model.generateContent([
-        "You're explaining this medical report directly to the patient, in a warm, natural voice — like a doctor talking them through it, not filling out a form. Write it as flowing paragraphs, not a rigid template or bullet checklist. Walk through what the report actually found, explain anything abnormal in plain language and why it matters, and close with practical, reassuring next steps. Keep medical jargon to a minimum and explain any term you do use.",
+        "You're explaining this medical report directly to the patient, in a warm, natural voice — like a doctor talking them through it, not filling out a form. Write it as flowing paragraphs, not a rigid template or bullet checklist. Walk through what the report actually found, explain anything abnormal in plain language and why it matters, and close with practical, reassuring next steps. Keep medical jargon to a minimum and explain any term you do use. Please give a summarized version of the report in points without astric * , please make it easy to read and understand. Do not include any personal information or identifiers from the report. If the report is incomplete or unclear, acknowledge that and suggest what the patient should do next. The summary should be concise, clear, and empathetic. If there's nothing like medical report then tell its not a medical report and ask the user to upload a valid medical report.  ",
         { inlineData: { data: req.file.buffer.toString("base64"), mimeType: req.file.mimetype } },
       ]);
       const summary = result.response.text();
