@@ -40,6 +40,16 @@ let usermodel = mongo.Schema({
    emergencyContactNumber: { type: Number, default: null },
    emergencyRelation: { type: String, default: null },
 
+   // People the SOS button messages on WhatsApp. Phone is stored as digits with country code.
+   emergencyContacts: {
+      type: [{
+         name: { type: String, required: true, trim: true },
+         phone: { type: String, required: true },
+         relation: { type: String, default: null, trim: true },
+      }],
+      default: [],
+   },
+
    image: { 
       type: String, 
       default: null 

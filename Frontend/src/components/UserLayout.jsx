@@ -3,8 +3,9 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Cookies from 'js-cookie';
 import {
   CalendarPlus, LayoutList, LogOut, Menu, X,
-  LayoutDashboard, User, MessageCircle, FileText, Video, CalendarClock, MapPin
+  LayoutDashboard, User, MessageCircle, FileText, Video, CalendarClock, MapPin, Siren
 } from 'lucide-react';
+import SosButton from './SosButton';
 
 const UserLayout = () => {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
@@ -80,6 +81,7 @@ const UserLayout = () => {
           <SidebarLink icon={<Video size={20} />} label="Live Capture" active={location.pathname === '/LiveCapture'} onClick={() => go('/LiveCapture')} isExpanded={isSidebarOpen || mobileOpen} />
           <SidebarLink icon={<CalendarClock size={20} />} label="Book by Slot" active={location.pathname === '/SlotBooking'} onClick={() => go('/SlotBooking')} isExpanded={isSidebarOpen || mobileOpen} />
           <SidebarLink icon={<MapPin size={20} />} label="Nearby Hospitals" active={location.pathname === '/NearbyHospitals'} onClick={() => go('/NearbyHospitals')} isExpanded={isSidebarOpen || mobileOpen} />
+          <SidebarLink icon={<Siren size={20} />} label="Emergency Contacts" active={location.pathname === '/emergency-contacts'} onClick={() => go('/emergency-contacts')} isExpanded={isSidebarOpen || mobileOpen} />
         </nav>
 
         <div className="p-5 border-t border-slate-50">
@@ -96,6 +98,8 @@ const UserLayout = () => {
       <main className="flex-1 min-w-0 overflow-hidden pt-16 lg:pt-0">
         <Outlet />
       </main>
+
+      <SosButton />
     </div>
   );
 };

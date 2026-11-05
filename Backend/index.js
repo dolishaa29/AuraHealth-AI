@@ -57,6 +57,7 @@ app.use("/", require("./router/reportanalysis"));
 app.use("/", require("./router/skinanalysis"));
 app.use("/", require("./router/triagerouter"));
 app.use("/", require("./router/hospitalrouter"));
+app.use("/", require("./router/emergencyrouter"));
 
 const PORT = process.env.PORT || 5000;
 
