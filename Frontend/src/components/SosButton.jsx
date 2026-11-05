@@ -53,7 +53,8 @@ const SosButton = () => {
     setLocating(false);
   };
 
-  useEffect(() => {
+  // Get the latest saved contacts from the server
+  const loadContacts = () => {
     axios
       .get(`${API}/emergency-contacts`, {
         headers: { Authorization: `Bearer ${Cookies.get("token")}` },
@@ -61,6 +62,10 @@ const SosButton = () => {
       })
       .then((res) => res.data.success && setProfile({ name: res.data.name, contacts: res.data.contacts }))
       .catch(() => {});
+  };
+
+  useEffect(() => {
+    loadContacts();
 
     // Warm up the location only if the user already allowed it, so the page never prompts on load.
     navigator.permissions
@@ -74,6 +79,8 @@ const SosButton = () => {
     armed.current = false;
     setHint(false);
     setHolding(true);
+    // Load contacts again, in case they were added after this page opened (the 2 second hold gives it time)
+    loadContacts();
     if (!positionRef.current) {
       setLocating(true);
       readPosition(updatePosition);
@@ -87,7 +94,10 @@ const SosButton = () => {
   const trigger = (openWhatsApp) => {
     setPanelOpen(true);
     if (openWhatsApp && profile.contacts.length && positionRef.current) {
-      window.open(waAll(buildMessage(profile.name, positionRef.current)), "_blank", "noopener,noreferrer");
+      const text = buildMessage(profile.name, positionRef.current);
+      // One contact: open their chat directly. More than one: WhatsApp lets the user pick who to send to.
+      const link = profile.contacts.length === 1 ? waTo(profile.contacts[0].phone, text) : waAll(text);
+      window.open(link, "_blank", "noopener,noreferrer");
     }
   };
 
