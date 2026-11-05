@@ -1,3 +1,5 @@
+const User = require("../model/user");
+
 const MAX_CONTACTS = 5;
 
 function cleanPhone(phone) {
@@ -106,7 +108,15 @@ exports.saveEmergencyContacts = async (req, res) => {
   }
 
   user.emergencyContacts = newContacts;
-  await user.save();
+
+  // Save only the contacts field. user.save() would check the whole profile,
+  // so an old bad value somewhere else (like maritalStatus: "") would stop this save.
+  try {
+    await User.updateOne({ _id: user._id }, { $set: { emergencyContacts: user.emergencyContacts } });
+  } catch (err) {
+    console.log("Saving emergency contacts failed:", err.message);
+    return res.status(500).json({ success: false, msg: "Couldn't save contacts. Please try again." });
+  }
 
   return res.status(200).json({
     success: true,

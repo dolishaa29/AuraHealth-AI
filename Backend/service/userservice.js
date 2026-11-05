@@ -350,7 +350,7 @@ exports.updateuser=async(req,res)=>
             dob:req.body.dob,
             fatherName:req.body.fatherName,
             motherName:req.body.motherName,
-            maritalStatus:req.body.maritalStatus,
+            maritalStatus:req.body.maritalStatus || null, // empty choice -> null ("" is not allowed by the model)
             nationality:req.body.nationality,
             bloodGroup:req.body.bloodGroup,
             emergencyContactName:req.body.emergencyContactName,
