@@ -20,13 +20,9 @@ const INTERNAL_ICON = makeDotIcon("#059669");
 const EXTERNAL_ICON = makeDotIcon("#ea580c");
 const SELECTED_ICON = makeDotIcon("#dc2626", 22);
 
-// Opens Google Maps straight into directions with both ends filled in; dir_action=navigate starts
-// turn-by-turn on phones (desktop shows the route preview with distance/ETA).
 const googleMapsUrl = (from, place) =>
   `https://www.google.com/maps/dir/?api=1&origin=${from.lat},${from.lng}&destination=${place.lat},${place.lng}&travelmode=driving&dir_action=navigate`;
 
-// Browsers only allow window.open during a click, but results arrive seconds later — so open the
-// tab on click and point it at Google Maps once the nearest hospital is known.
 const openPendingMapsTab = () => {
   const tab = window.open("", "_blank");
   if (!tab) return null;
@@ -73,7 +69,6 @@ const toPlaces = (results) => {
   return [...doctors, ...hospitals].sort((a, b) => (distanceOf(a) ?? Infinity) - (distanceOf(b) ?? Infinity));
 };
 
-// Keeps the map framed on the active route, or on the selected place while its route loads.
 const MapFocus = ({ position, selected, path }) => {
   const map = useMap();
   useEffect(() => {
@@ -151,7 +146,7 @@ const NearbyHospitals = () => {
       });
       if (res.data.success) {
         setResults(res.data);
-        // Suggest the nearest one straight away and draw the way there.
+
         const nearest = toPlaces(res.data)[0];
         if (nearest) showRoute(nearest, point);
         if (mapsTab && nearest) mapsTab.location.href = googleMapsUrl(point, nearest);
@@ -167,8 +162,6 @@ const NearbyHospitals = () => {
     }
   };
 
-  // Directions to the selected place (the nearest one by default). Without results yet, search first
-  // and send a click-opened tab there once the nearest hospital is known.
   const navigate = () => {
     if (!position) return;
     if (selected) {
@@ -183,215 +176,125 @@ const NearbyHospitals = () => {
   }, [position]);
 
   return (
-    <div className="h-full overflow-y-auto bg-slate-50 px-6 py-10 md:px-10">
-      <div className="mb-6">
-        <p className="text-[10px] font-bold text-indigo-500 tracking-[0.2em] uppercase mb-1">Emergency & Care</p>
-        <h1 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight">
-          Nearby <span className="text-indigo-600">Hospitals</span>
-        </h1>
-        <p className="text-slate-400 text-sm mt-1">Find the closest hospital, see the shortest way there, and open it in Google Maps</p>
-      </div>
-
-      <div className="max-w-xl bg-white border border-slate-200 rounded-2xl p-4 shadow-sm mb-6 flex gap-2">
-        <input
-          type="text"
-          placeholder="What's the issue? (optional, e.g. chest pain)"
-          value={issue}
-          onChange={(e) => setIssue(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && search()}
-          className="flex-1 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 transition-all"
-        />
-        <button
-          onClick={() => search()}
-          disabled={!position || loading}
-          className="px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs uppercase tracking-wider disabled:opacity-30 hover:bg-indigo-700 transition-all shrink-0 flex items-center gap-1.5"
-        >
-          {loading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
-          Search
-        </button>
-        <button
-          onClick={navigate}
-          disabled={!position || loading}
-          title={selected ? `Directions to ${selected.name}` : "Find the nearest hospital and open directions"}
-          className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-xs uppercase tracking-wider disabled:opacity-30 hover:bg-emerald-700 transition-all shrink-0 flex items-center gap-1.5"
-        >
-          <Navigation size={14} />
-          Navigate
-        </button>
-      </div>
-
-      {locationError && <p className="text-sm text-red-500 font-medium mb-4">{locationError}</p>}
-      {searchError && <p className="text-sm text-red-500 font-medium mb-4">{searchError}</p>}
-      {results?.externalUnavailable && (
-        <p className="text-sm text-amber-600 font-medium mb-4">
-          Hospital map data is temporarily unavailable — showing AuraHealth doctors only. Try searching again in a minute.
-        </p>
-      )}
-      {results?.inferredSpecialization && (
-        <p className="text-xs text-slate-500 mb-4">
-          Suggested specialization: <span className="font-bold text-indigo-600">{results.inferredSpecialization}</span>
-        </p>
-      )}
-
-      {!position && !locationError && (
-        <div className="flex items-center gap-2 text-slate-400 text-sm mb-4">
-          <Loader2 size={16} className="animate-spin" /> Getting your location…
+    <div className="h-full overflow-y-auto px-4 py-6 sm:px-6 lg:px-2 lg:py-2">
+      <div className="flex flex-col gap-[22px] pb-24">
+        <div>
+          <h1 className="text-[28px] sm:text-[32px] font-extrabold tracking-[-0.025em]">Hospitals near you</h1>
+          <p className="mt-1.5 text-[15px] text-[#6B6A8A]">Find the closest care, see the fastest way there and open it in Google Maps.</p>
         </div>
-      )}
 
-      {position && selected && (
-        <div className="mb-4 bg-white border border-indigo-100 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-bold text-indigo-500 tracking-[0.2em] uppercase mb-0.5">Shortest route</p>
-            <p className="font-bold text-slate-900 truncate">{selected.name}</p>
-            <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
-              {routeLoading ? (
-                <>
-                  <Loader2 size={12} className="animate-spin" /> Finding the shortest way…
-                </>
-              ) : route ? (
-                <>
-                  <Route size={12} /> {route.distanceKm} km <Clock size={12} className="ml-1" /> ~{route.durationMin} min by car
-                </>
-              ) : (
-                routeError || formatDistance(selected)
-              )}
-            </p>
+        <section className="relative overflow-hidden rounded-[32px] bg-[#E6F1FF] p-6 sm:p-7">
+          <div aria-hidden="true" className="absolute -right-14 -top-16 w-56 h-56 rounded-full bg-[#D3E6FF]" />
+          <h2 className="relative mb-4 text-xl sm:text-2xl font-extrabold tracking-tight text-[#1E3A8A]">What do you need help with?</h2>
+          <div className="relative flex flex-wrap gap-2">
+            <label className="sr-only" htmlFor="issue">Issue</label>
+            <input id="issue" value={issue} onChange={(e) => setIssue(e.target.value)} onKeyDown={(e) => e.key === "Enter" && search()}
+              placeholder="Optional, e.g. chest pain or fracture"
+              className="flex-[1_1_260px] h-[52px] px-5 rounded-full bg-white text-[15px] font-medium placeholder:text-[#9A99B5] focus:outline-none focus:ring-2 focus:ring-blue-300" />
+            <button onClick={() => search()} disabled={!position || loading} className="h-[52px] px-6 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-[15px] font-bold flex items-center gap-2 disabled:opacity-50">
+              {loading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />} Search
+            </button>
+            <button onClick={navigate} disabled={!position || loading} title={selected ? `Directions to ${selected.name}` : "Directions to the nearest hospital"}
+              className="h-[52px] px-6 rounded-full bg-[#12B76A] hover:bg-[#039855] text-white text-[15px] font-bold flex items-center gap-2 disabled:opacity-50">
+              <Navigation size={16} /> Take me there
+            </button>
           </div>
-          <a
-            href={googleMapsUrl(position, selected)}
-            target="_blank"
-            rel="noreferrer"
-            className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-xs uppercase tracking-wider hover:bg-emerald-700 transition-all shrink-0 flex items-center justify-center gap-1.5"
-          >
-            <Navigation size={14} /> Open in Google Maps
-          </a>
-        </div>
-      )}
+          {results?.inferredSpecialization && (
+            <p className="relative mt-3 text-sm text-[#1E3A8A]">Suggested specialty: <span className="px-3 py-1 rounded-full bg-white font-bold">{results.inferredSpecialization}</span></p>
+          )}
+        </section>
 
-      {position && (
-        <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
-          <div className="rounded-3xl overflow-hidden border border-slate-200 shadow-sm" style={{ height: "480px" }}>
-            <MapContainer center={[position.lat, position.lng]} zoom={13} style={{ height: "100%", width: "100%" }}>
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              <MapFocus position={position} selected={selected} path={route?.path} />
+        {locationError && <p className="px-5 py-3 rounded-[20px] bg-[#FFECEB] text-[#B42318] text-sm font-semibold">{locationError}</p>}
+        {searchError && <p className="px-5 py-3 rounded-[20px] bg-[#FFECEB] text-[#B42318] text-sm font-semibold">{searchError}</p>}
+        {results?.externalUnavailable && (
+          <p className="px-5 py-3 rounded-[20px] bg-[#FFF4E5] text-[#B45309] text-sm font-semibold">Hospital map data is busy right now, so only AuraHealth doctors are shown. Try again in a minute.</p>
+        )}
+        {!position && !locationError && (
+          <p className="flex items-center gap-2 text-[#6B6A8A] text-sm"><Loader2 size={16} className="animate-spin" /> Getting your location…</p>
+        )}
 
-              {route?.path && <Polyline positions={route.path} pathOptions={{ color: "#4f46e5", weight: 5, opacity: 0.8 }} />}
+        {position && selected && (
+          <section className="rounded-[28px] bg-[#E7F7EF] p-5 flex flex-wrap items-center gap-4">
+            <span className="w-12 h-12 shrink-0 rounded-full bg-white text-[#05603A] flex items-center justify-center"><Route size={20} /></span>
+            <div className="flex-[1_1_220px] min-w-0">
+              <p className="text-base font-extrabold text-[#054F31] truncate">{selected.name}</p>
+              <p className="text-sm text-[#05603A] flex items-center gap-1.5">
+                {routeLoading ? <><Loader2 size={13} className="animate-spin" /> Finding the fastest way…</>
+                  : route ? <>{route.distanceKm} km · <Clock size={13} /> about {route.durationMin} min by car</>
+                  : routeError || formatDistance(selected)}
+              </p>
+            </div>
+            <a href={googleMapsUrl(position, selected)} target="_blank" rel="noreferrer" className="h-11 px-5 rounded-full bg-[#12B76A] hover:bg-[#039855] text-white text-sm font-bold flex items-center gap-2">
+              <Navigation size={15} /> Open in Google Maps
+            </a>
+          </section>
+        )}
 
-              <Marker position={[position.lat, position.lng]} icon={USER_ICON}>
-                <Popup>You are here</Popup>
-              </Marker>
-
-              {places.map((place) => (
-                <Marker
-                  key={place.id}
-                  position={[place.lat, place.lng]}
-                  icon={place.id === selectedId ? SELECTED_ICON : place.kind === "doctor" ? INTERNAL_ICON : EXTERNAL_ICON}
-                  eventHandlers={{ click: () => showRoute(place) }}
-                >
-                  <Popup>
-                    <div className="text-xs space-y-1">
-                      <p className="font-bold">{place.name}</p>
-                      {place.subtitle && <p className="text-slate-500">{place.subtitle}</p>}
-                      <p className="text-slate-400">{formatDistance(place)}</p>
-                      <a
-                        href={googleMapsUrl(position, place)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-indigo-600 font-bold flex items-center gap-1 mt-1"
-                      >
-                        <Navigation size={11} /> Open in Google Maps
-                      </a>
-                      {place.kind === "doctor" && (
-                        <a href="/SlotBooking" className="text-emerald-600 font-bold block">
-                          Book Appointment &rarr;
-                        </a>
-                      )}
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
-            </MapContainer>
-          </div>
-
-          <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-4 lg:h-[480px] flex flex-col">
-            <p className="text-[10px] font-bold text-slate-400 tracking-[0.2em] uppercase mb-3 px-1">
-              Suggested near you {places.length > 0 && `(${places.length})`}
-            </p>
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-              {loading && (
-                <div className="flex items-center gap-2 text-slate-400 text-sm px-1">
-                  <Loader2 size={14} className="animate-spin" /> Searching nearby…
-                </div>
-              )}
-              {!loading && results && places.length === 0 && (
-                <p className="text-sm text-slate-400 px-1">No hospitals found within 15 km.</p>
-              )}
-              {!loading &&
-                places.map((place, i) => (
-                  <div
-                    key={place.id}
-                    className={`rounded-2xl border p-3 transition-all ${
-                      place.id === selectedId ? "border-indigo-300 bg-indigo-50/60" : "border-slate-100 hover:border-slate-200"
-                    }`}
-                  >
-                    <div className="flex items-start gap-2">
-                      <MapPin
-                        size={16}
-                        className={`mt-0.5 shrink-0 ${place.kind === "doctor" ? "text-emerald-600" : "text-orange-600"}`}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <p className="font-bold text-sm text-slate-900">{place.name}</p>
-                          {i === 0 && (
-                            <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[9px] font-bold uppercase">
-                              Nearest
-                            </span>
-                          )}
+        {position && (
+          <div className="flex flex-wrap gap-5 items-start">
+            <section className="flex-[999_1_480px] min-w-0 bg-white rounded-[32px] p-3 shadow-[0_8px_30px_rgba(79,70,229,0.06)]">
+              <div className="rounded-[26px] overflow-hidden h-[480px]">
+                <MapContainer center={[position.lat, position.lng]} zoom={13} style={{ height: "100%", width: "100%" }}>
+                  <TileLayer
+                    attribution={'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  <MapFocus position={position} selected={selected} path={route?.path} />
+                  {route?.path && <Polyline positions={route.path} pathOptions={{ color: "#4f46e5", weight: 5, opacity: 0.8 }} />}
+                  <Marker position={[position.lat, position.lng]} icon={USER_ICON}><Popup>You are here</Popup></Marker>
+                  {places.map((place) => (
+                    <Marker key={place.id} position={[place.lat, place.lng]}
+                      icon={place.id === selectedId ? SELECTED_ICON : place.kind === "doctor" ? INTERNAL_ICON : EXTERNAL_ICON}
+                      eventHandlers={{ click: () => showRoute(place) }}>
+                      <Popup>
+                        <div className="text-xs space-y-1">
+                          <p className="font-bold">{place.name}</p>
+                          {place.subtitle && <p className="text-slate-500">{place.subtitle}</p>}
+                          <p className="text-slate-500">{formatDistance(place)}</p>
+                          <a href={googleMapsUrl(position, place)} target="_blank" rel="noreferrer" className="text-indigo-600 font-bold flex items-center gap-1 mt-1"><Navigation size={11} /> Open in Google Maps</a>
+                          {place.kind === "doctor" && <a href="/SlotBooking" className="text-emerald-700 font-bold block">Book appointment &rarr;</a>}
                         </div>
-                        {place.subtitle && <p className="text-xs text-slate-500 truncate">{place.subtitle}</p>}
-                        <p className="text-xs text-slate-400 mt-0.5">{formatDistance(place)}</p>
+                      </Popup>
+                    </Marker>
+                  ))}
+                </MapContainer>
+              </div>
+              <div className="flex flex-wrap gap-4 px-3 pt-3 pb-1 text-xs font-semibold text-[#6B6A8A]">
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-indigo-600" /> You</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-600" /> AuraHealth doctors</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-orange-600" /> Other hospitals</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-600" /> Selected</span>
+              </div>
+            </section>
+
+            <section className="flex-[1_1_320px] min-w-0 bg-white rounded-[28px] p-5 shadow-[0_8px_30px_rgba(79,70,229,0.06)] lg:max-h-[560px] flex flex-col">
+              <h2 className="mb-3 text-lg font-extrabold">Near you {places.length > 0 && <span className="text-[#6B6A8A] font-bold">· {places.length}</span>}</h2>
+              <div className="flex-1 overflow-y-auto flex flex-col gap-2.5 pr-1">
+                {loading && <p className="flex items-center gap-2 text-[#6B6A8A] text-sm"><Loader2 size={14} className="animate-spin" /> Searching nearby…</p>}
+                {!loading && results && places.length === 0 && <p className="text-sm text-[#6B6A8A]">No hospitals found within 15 km.</p>}
+                {!loading && places.map((place, i) => (
+                  <div key={place.id} className={`p-4 rounded-[22px] transition-shadow ${place.id === selectedId ? "bg-[#EEEDFF] shadow-[0_0_0_2px_#4F46E5]" : "bg-[#F6F6FD]"}`}>
+                    <div className="flex items-start gap-3">
+                      <span className={`w-10 h-10 shrink-0 rounded-full bg-white flex items-center justify-center ${place.kind === "doctor" ? "text-emerald-600" : "text-orange-600"}`}><MapPin size={18} /></span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-extrabold">
+                          {place.name}
+                          {i === 0 && <span className="ml-2 px-2 py-0.5 rounded-full bg-[#E7F7EF] text-[#05603A] text-[11px] font-extrabold align-middle">Nearest</span>}
+                        </p>
+                        {place.subtitle && <p className="text-xs text-[#6B6A8A] truncate">{place.subtitle}</p>}
+                        <p className="text-xs font-semibold text-[#4B4A6B] mt-0.5">{formatDistance(place)}</p>
                       </div>
                     </div>
-                    <div className="flex gap-2 mt-2.5">
-                      <button
-                        onClick={() => showRoute(place)}
-                        className="flex-1 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 text-[11px] font-bold hover:bg-indigo-100 transition-all flex items-center justify-center gap-1"
-                      >
-                        <Route size={12} /> Show route
-                      </button>
-                      <a
-                        href={googleMapsUrl(position, place)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-700 transition-all flex items-center justify-center gap-1"
-                      >
-                        <Navigation size={12} /> Google Maps
-                      </a>
+                    <div className="flex gap-2 mt-3">
+                      <button onClick={() => showRoute(place)} className="flex-1 h-9 rounded-full bg-white text-indigo-700 text-xs font-bold flex items-center justify-center gap-1"><Route size={13} /> Route</button>
+                      <a href={googleMapsUrl(position, place)} target="_blank" rel="noreferrer" className="flex-1 h-9 rounded-full bg-[#12B76A] text-white text-xs font-bold flex items-center justify-center gap-1"><Navigation size={13} /> Go</a>
                     </div>
                   </div>
                 ))}
-            </div>
+              </div>
+            </section>
           </div>
-        </div>
-      )}
-
-      <div className="flex items-center gap-4 mt-4 text-xs text-slate-400 flex-wrap">
-        <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 inline-block" /> You
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block" /> AuraHealth doctors
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-orange-600 inline-block" /> Other hospitals
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-red-600 inline-block" /> Selected
-        </span>
+        )}
       </div>
     </div>
   );

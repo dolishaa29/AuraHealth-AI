@@ -63,22 +63,21 @@ const Rating = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[#fafaf9] px-6 py-10 md:px-10">
+        <div className="min-h-screen bg-[#F6F6FD] px-6 py-10 md:px-10">
 
-            { }
             <div className="flex items-start justify-between flex-wrap gap-4 mb-8">
                 <div>
-                    <p className="text-[10px] font-bold text-indigo-500 tracking-[0.2em] uppercase mb-1">Feedback</p>
-                    <h1 className="text-4xl font-black text-slate-900 tracking-tighter">
+                    <p className="text-[13px] font-bold text-indigo-600 mb-1">Feedback</p>
+                    <h1 className="text-4xl font-extrabold text-slate-900 tracking-tighter">
                         Rate{" "}
-                        <span className="bg-linear-to-r from-violet-600 to-indigo-500 bg-clip-text text-transparent">
+                        <span className="bg-indigo-600 bg-clip-text text-transparent">
                             Doctor
                         </span>
                     </h1>
                 </div>
                 <button
                     onClick={() => navigate(-1)}
-                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-slate-500 bg-white border border-slate-200 hover:bg-slate-50 rounded-2xl transition-all"
+                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-slate-500 bg-white shadow-[0_8px_30px_rgba(79,70,229,0.06)] hover:bg-slate-50 rounded-[20px] transition-all"
                 >
                     <ArrowLeft size={14} />
                     Back
@@ -87,12 +86,11 @@ const Rating = () => {
 
             <div className="max-w-3xl space-y-5">
 
-                { }
                 {averageRating && (
-                    <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm flex items-center gap-6">
+                    <div className="bg-white shadow-[0_8px_30px_rgba(79,70,229,0.06)] rounded-[28px] p-6 flex items-center gap-6">
                         <div className="text-center shrink-0">
-                            <p className="text-5xl font-black text-slate-900">{averageRating}</p>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">out of 5</p>
+                            <p className="text-5xl font-extrabold text-slate-900">{averageRating}</p>
+                            <p className="text-[13px] font-bold text-slate-500 mt-1">out of 5</p>
                         </div>
                         <div className="h-12 w-px bg-slate-100" />
                         <div>
@@ -112,10 +110,9 @@ const Rating = () => {
                     </div>
                 )}
 
-                { }
-                <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
+                <div className="bg-white shadow-[0_8px_30px_rgba(79,70,229,0.06)] rounded-[28px] p-6">
                     <div className="flex items-center gap-2.5 mb-5">
-                        <div className="p-1.5 rounded-xl bg-amber-50 text-amber-500">
+                        <div className="p-1.5 rounded-[16px] bg-amber-50 text-amber-500">
                             <Star size={15} />
                         </div>
                         <h3 className="text-sm font-bold text-slate-800">Leave a Review</h3>
@@ -123,9 +120,8 @@ const Rating = () => {
 
                     <form onSubmit={handleSubmit} className="space-y-5">
 
-                        { }
                         <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">
+                            <label className="block text-[10px] font-bold text-slate-500 mb-3">
                                 Your Rating (1–5)
                             </label>
                             <div className="flex items-center gap-2">
@@ -149,23 +145,22 @@ const Rating = () => {
                                     </button>
                                 ))}
                                 {rating > 0 && (
-                                    <span className="ml-2 text-sm font-black text-slate-700">
+                                    <span className="ml-2 text-sm font-extrabold text-slate-700">
                                         {rating} / 5
                                     </span>
                                 )}
                             </div>
                         </div>
 
-                        { }
                         <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                            <label className="block text-[10px] font-bold text-slate-500 mb-1.5">
                                 Comment <span className="text-slate-300 normal-case font-medium">(optional)</span>
                             </label>
                             <textarea
                                 placeholder="Share your experience with this doctor..."
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 transition-all resize-none h-28"
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-[20px] text-sm text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 transition-all resize-none h-28"
                             />
                         </div>
 
@@ -186,7 +181,7 @@ const Rating = () => {
                         <button
                             type="submit"
                             disabled={submitting || rating === 0}
-                            className="flex items-center gap-2 px-8 py-3.5 bg-linear-to-r from-violet-600 to-indigo-500 text-white font-bold text-sm rounded-2xl shadow-lg shadow-indigo-100 hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="flex items-center gap-2 px-8 py-3.5 bg-indigo-600 text-white font-bold text-sm rounded-[20px] shadow-lg shadow-indigo-100 hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                             <Send size={15} />
                             {submitting ? "Submitting..." : "Submit Review"}
@@ -194,24 +189,23 @@ const Rating = () => {
                     </form>
                 </div>
 
-                { }
                 {data.length > 0 && (
-                    <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
+                    <div className="bg-white shadow-[0_8px_30px_rgba(79,70,229,0.06)] rounded-[28px] p-6">
                         <div className="flex items-center gap-2.5 mb-5">
-                            <div className="p-1.5 rounded-xl bg-indigo-50 text-indigo-600">
+                            <div className="p-1.5 rounded-[16px] bg-indigo-50 text-indigo-600">
                                 <Star size={15} />
                             </div>
                             <h3 className="text-sm font-bold text-slate-800">All Reviews</h3>
-                            <span className="ml-auto px-2.5 py-1 bg-slate-50 text-slate-500 text-[10px] font-bold rounded-xl border border-slate-100">
+                            <span className="ml-auto px-2.5 py-1 bg-slate-50 text-slate-500 text-[10px] font-bold rounded-[16px] border border-slate-100">
                                 {data.length}
                             </span>
                         </div>
 
                         <div className="space-y-3">
                             {data.map((r, i) => (
-                                <div key={r._id || i} className="flex gap-4 items-start bg-slate-50 border border-slate-100 rounded-2xl p-4">
-                                    <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0">
-                                        <span className="text-sm font-black text-amber-600">{r.rating}</span>
+                                <div key={r._id || i} className="flex gap-4 items-start bg-slate-50 border border-slate-100 rounded-[20px] p-4">
+                                    <div className="w-10 h-10 rounded-[16px] bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0">
+                                        <span className="text-sm font-extrabold text-amber-600">{r.rating}</span>
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-1.5 mb-1">

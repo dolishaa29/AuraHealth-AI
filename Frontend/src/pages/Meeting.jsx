@@ -17,7 +17,7 @@ const Meeting = () => {
   const pcRef = useRef(null);
   const localStreamRef = useRef(null);
 
-  const [status, setStatus] = useState('connecting'); 
+  const [status, setStatus] = useState('connecting');
   const [errorMsg, setErrorMsg] = useState('');
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
@@ -209,7 +209,7 @@ const Meeting = () => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-950 relative overflow-hidden">
+    <div className="h-full flex flex-col bg-[#13113A] relative overflow-hidden">
       <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6 py-4 bg-gradient-to-b from-black/60 to-transparent">
         <div className="flex items-center gap-2 text-white">
           <span className={`w-2 h-2 rounded-full ${status === 'connected' ? 'bg-emerald-400' : 'bg-amber-400'} animate-pulse`} />
@@ -282,7 +282,7 @@ const Meeting = () => {
         )}
 
         {status !== 'error' && (
-          <div className="absolute bottom-24 right-6 w-40 sm:w-56 aspect-video rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl bg-slate-900">
+          <div className="absolute bottom-24 right-6 w-40 sm:w-56 aspect-video rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl bg-[#1E1B4B]">
             <video
               ref={localVideoRef}
               autoPlay

@@ -29,12 +29,10 @@ const readPosition = (onDone) => {
   navigator.geolocation.getCurrentPosition(
     (pos) => onDone({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
     () => onDone(null),
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
   );
 };
 
-// Hold-to-trigger: releasing the button is a real user gesture, so WhatsApp can open immediately
-// without the browser blocking it as a popup — and a quick accidental tap does nothing.
 const SosButton = () => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState({ name: "", contacts: [] });
@@ -43,17 +41,22 @@ const SosButton = () => {
   const [panelOpen, setPanelOpen] = useState(false);
   const [position, setPosition] = useState(null);
   const [locating, setLocating] = useState(false);
+
+  const [sendStatus, setSendStatus] = useState(null);
+  const [sentWithoutLocation, setSentWithoutLocation] = useState(false);
   const armed = useRef(false);
   const holdTimer = useRef(null);
+  const hintTimer = useRef(null);
   const positionRef = useRef(null);
 
   const updatePosition = (p) => {
-    positionRef.current = p;
-    setPosition(p);
+    if (p) {
+      positionRef.current = p;
+      setPosition(p);
+    }
     setLocating(false);
   };
 
-  // Get the latest saved contacts from the server
   const loadContacts = () => {
     axios
       .get(`${API}/emergency-contacts`, {
@@ -67,11 +70,15 @@ const SosButton = () => {
   useEffect(() => {
     loadContacts();
 
-    // Warm up the location only if the user already allowed it, so the page never prompts on load.
     navigator.permissions
       ?.query({ name: "geolocation" })
       .then((status) => status.state === "granted" && readPosition(updatePosition))
       .catch(() => {});
+
+    return () => {
+      clearTimeout(holdTimer.current);
+      clearTimeout(hintTimer.current);
+    };
   }, []);
 
   const startHold = (e) => {
@@ -79,12 +86,11 @@ const SosButton = () => {
     armed.current = false;
     setHint(false);
     setHolding(true);
-    // Load contacts again, in case they were added after this page opened (the 2 second hold gives it time)
+
     loadContacts();
-    if (!positionRef.current) {
-      setLocating(true);
-      readPosition(updatePosition);
-    }
+
+    setLocating(!positionRef.current);
+    readPosition(updatePosition);
     holdTimer.current = setTimeout(() => {
       armed.current = true;
       navigator.vibrate?.(200);
@@ -93,11 +99,20 @@ const SosButton = () => {
 
   const trigger = (openWhatsApp) => {
     setPanelOpen(true);
-    if (openWhatsApp && profile.contacts.length && positionRef.current) {
-      const text = buildMessage(profile.name, positionRef.current);
-      // One contact: open their chat directly. More than one: WhatsApp lets the user pick who to send to.
-      const link = profile.contacts.length === 1 ? waTo(profile.contacts[0].phone, text) : waAll(text);
-      window.open(link, "_blank", "noopener,noreferrer");
+    setSendStatus(null);
+    setSentWithoutLocation(false);
+    if (!openWhatsApp || !profile.contacts.length) return;
+
+    const text = buildMessage(profile.name, positionRef.current);
+
+    const link = profile.contacts.length === 1 ? waTo(profile.contacts[0].phone, text) : waAll(text);
+    const win = window.open(link, "_blank");
+    if (win) {
+      win.opener = null;
+      setSendStatus("opened");
+      setSentWithoutLocation(!positionRef.current);
+    } else {
+      setSendStatus("blocked");
     }
   };
 
@@ -109,7 +124,8 @@ const SosButton = () => {
       trigger(released);
     } else if (released) {
       setHint(true);
-      setTimeout(() => setHint(false), 2500);
+      clearTimeout(hintTimer.current);
+      hintTimer.current = setTimeout(() => setHint(false), 2500);
     }
   };
 
@@ -142,18 +158,18 @@ const SosButton = () => {
           />
           <span className="relative flex flex-col items-center leading-none">
             <Siren size={22} />
-            <span className="text-[10px] font-black tracking-wider mt-0.5">SOS</span>
+            <span className="text-[10px] font-extrabold tracking-wider mt-0.5">SOS</span>
           </span>
         </button>
       </div>
 
       {panelOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-end sm:items-center justify-center p-4" onClick={() => setPanelOpen(false)}>
-          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-md bg-white rounded-[28px] shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="bg-red-600 text-white px-5 py-4 flex items-center gap-3">
               <Siren size={22} />
               <div className="flex-1">
-                <p className="font-black tracking-tight">Emergency SOS</p>
+                <p className="font-extrabold tracking-tight">Emergency SOS</p>
                 <p className="text-xs text-red-100 flex items-center gap-1">
                   {locating ? (
                     <><Loader2 size={11} className="animate-spin" /> Getting your location…</>
@@ -170,9 +186,20 @@ const SosButton = () => {
             </div>
 
             <div className="p-5 space-y-3">
+              {sendStatus === "opened" && (
+                <p className="text-xs font-medium text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2">
+                  WhatsApp opened with your SOS message. Tap Send there.
+                  {sentWithoutLocation && position && " Your location is ready now: send again below to share it."}
+                </p>
+              )}
+              {sendStatus === "blocked" && (
+                <p className="text-xs font-medium text-amber-700 bg-amber-50 rounded-xl px-3 py-2">
+                  Your browser blocked WhatsApp from opening. Tap a WhatsApp button below to send.
+                </p>
+              )}
               <a
                 href="tel:112"
-                className="w-full py-3 rounded-2xl bg-red-50 text-red-700 font-bold text-sm flex items-center justify-center gap-2 hover:bg-red-100"
+                className="w-full py-3 rounded-[20px] bg-red-50 text-red-700 font-bold text-sm flex items-center justify-center gap-2 hover:bg-red-100"
               >
                 <Phone size={16} /> Call 112 (Emergency)
               </a>
@@ -182,7 +209,7 @@ const SosButton = () => {
                   <p className="text-sm text-slate-500 mb-3">You haven't added any emergency contacts yet.</p>
                   <button
                     onClick={() => { setPanelOpen(false); navigate("/emergency-contacts"); }}
-                    className="px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs uppercase tracking-wider"
+                    className="px-5 py-2.5 rounded-full bg-indigo-600 text-white font-bold text-xs uppercase tracking-wider"
                   >
                     Add contacts
                   </button>
@@ -193,7 +220,7 @@ const SosButton = () => {
                     href={waAll(message)}
                     target="_blank"
                     rel="noreferrer"
-                    className="w-full py-3 rounded-2xl bg-emerald-600 text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-emerald-700"
+                    className="w-full py-3 rounded-[20px] bg-emerald-600 text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-emerald-700"
                   >
                     <Users size={16} /> Send to all on WhatsApp
                   </a>
@@ -201,7 +228,7 @@ const SosButton = () => {
 
                   <div className="pt-2 space-y-2">
                     {profile.contacts.map((c) => (
-                      <div key={c._id || c.phone} className="flex items-center gap-2 rounded-2xl border border-slate-100 p-3">
+                      <div key={c._id || c.phone} className="flex items-center gap-2 rounded-[20px] border border-slate-100 p-3">
                         <div className="flex-1 min-w-0">
                           <p className="font-bold text-sm text-slate-900 truncate">{c.name}</p>
                           <p className="text-xs text-slate-400">{c.relation ? `${c.relation} · ` : ""}+{c.phone}</p>

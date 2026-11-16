@@ -1,50 +1,31 @@
 @import "tailwindcss";
 
 @theme {
-  --color-slate-50: #fafaf9;
-  --color-slate-100: #f5f5f4;
-  --color-slate-200: #e7e5e4;
-  --color-slate-300: #d6d3d1;
-  --color-slate-400: #a8a29e;
-  --color-slate-500: #78716c;
-  --color-slate-600: #57534e;
-  --color-slate-700: #44403c;
-  --color-slate-800: #292524;
-  --color-slate-900: #1c1917;
-  --color-slate-950: #0c0a09;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
 
-  --color-gray-50: #fafaf9;
-  --color-gray-100: #f5f5f4;
-  --color-gray-200: #e7e5e4;
-  --color-gray-300: #d6d3d1;
-  --color-gray-400: #a8a29e;
-  --color-gray-500: #78716c;
-  --color-gray-600: #57534e;
-  --color-gray-700: #44403c;
-  --color-gray-800: #292524;
-  --color-gray-900: #1c1917;
-  --color-gray-950: #0c0a09;
+  --color-slate-50: #f6f6fd;
+  --color-slate-100: #efeff8;
+  --color-slate-200: #e4e3f5;
+  --color-slate-300: #c9c8e0;
+  --color-slate-400: #8f8eab;
+  --color-slate-500: #6b6a8a;
+  --color-slate-600: #4b4a6b;
+  --color-slate-700: #3b3a5c;
+  --color-slate-800: #2a2950;
+  --color-slate-900: #1e1b4b;
+  --color-slate-950: #13113a;
 
-  --color-indigo-50: #f4f6ec;
-  --color-indigo-100: #e7ecd7;
-  --color-indigo-200: #d1ddae;
-  --color-indigo-300: #b3c67e;
-  --color-indigo-400: #93a85a;
-  --color-indigo-500: #748a3f;
-  --color-indigo-600: #566b2e;
-  --color-indigo-700: #445425;
-  --color-indigo-800: #38431f;
-  --color-indigo-900: #2f3818;
-  --color-indigo-950: #171d0d;
-
-  --color-violet-50: #f6f7ec;
-  --color-violet-100: #eaeed7;
-  --color-violet-200: #d7ddae;
-  --color-violet-300: #c0c982;
-  --color-violet-400: #a3b25e;
-  --color-violet-500: #879943;
-  --color-violet-600: #6d7d34;
-  --color-violet-700: #56642a;
+  --color-gray-50: #f6f6fd;
+  --color-gray-100: #efeff8;
+  --color-gray-200: #e4e3f5;
+  --color-gray-300: #c9c8e0;
+  --color-gray-400: #8f8eab;
+  --color-gray-500: #6b6a8a;
+  --color-gray-600: #4b4a6b;
+  --color-gray-700: #3b3a5c;
+  --color-gray-800: #2a2950;
+  --color-gray-900: #1e1b4b;
+  --color-gray-950: #13113a;
 }
 
 html {
@@ -64,5 +45,10 @@ html {
 @keyframes floatSlower {
   0%, 100% { transform: translate(0, 0); }
   50% { transform: translate(-16px, 18px); }
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
 }
 

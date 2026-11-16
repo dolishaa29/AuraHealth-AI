@@ -1,57 +1,33 @@
 import React from 'react';
-import { ArrowUpRight, HeartPulse, Brain, Salad } from 'lucide-react';
+import { HeartPulse, Brain, Salad, Clock } from 'lucide-react';
 import Reveal from './Reveal';
 
 const ARTICLES = [
-  {
-    icon: <HeartPulse size={18} className="text-rose-500" />,
-    tag: 'Heart Health',
-    tagBg: 'bg-rose-50',
-    title: 'Reading your first cardiology report without the jargon',
-    readTime: '5 min read',
-  },
-  {
-    icon: <Brain size={18} className="text-indigo-500" />,
-    tag: 'Mental Health',
-    tagBg: 'bg-indigo-50',
-    title: 'What a good telehealth therapy session actually looks like',
-    readTime: '4 min read',
-  },
-  {
-    icon: <Salad size={18} className="text-emerald-500" />,
-    tag: 'Nutrition',
-    tagBg: 'bg-emerald-50',
-    title: 'Lab-backed diet changes your doctor actually recommends',
-    readTime: '6 min read',
-  },
+  { icon: HeartPulse, tag: 'Heart health', title: 'Reading your first cardiology report without the jargon', readTime: '5 min read', card: 'bg-[#FFECEB]', ink: 'text-[#B42318]' },
+  { icon: Brain, tag: 'Mental health', title: 'What a good telehealth therapy session looks like', readTime: '4 min read', card: 'bg-[#E9E8FF]', ink: 'text-indigo-600' },
+  { icon: Salad, tag: 'Nutrition', title: 'Diet changes your doctor is most likely to recommend', readTime: '6 min read', card: 'bg-[#E7F7EF]', ink: 'text-[#05603A]' },
 ];
 
 const Resources = () => (
-  <section>
-    <div className="max-w-5xl mx-auto px-6 md:px-10 py-20 md:py-28">
-      <Reveal className="flex items-end justify-between gap-6 mb-14 flex-wrap">
-        <div>
-          <p className="text-[11px] font-bold text-indigo-500 tracking-[0.2em] uppercase mb-3">Resources</p>
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">
-            Health guides worth your time
-          </h2>
+  <section id="resources" className="px-4 sm:px-6 py-24">
+    <div className="max-w-6xl mx-auto">
+      <Reveal className="flex flex-wrap items-end justify-between gap-4">
+        <div className="max-w-xl">
+          <p className="text-sm font-extrabold text-indigo-600">Health guides</p>
+          <h2 className="mt-2 text-[34px] md:text-[48px] font-extrabold leading-[1.08] tracking-[-0.035em] text-[#1E1B4B]">Learn a little, worry a lot less</h2>
         </div>
-        <span className="text-sm font-bold text-slate-400">More articles coming soon</span>
+        <span className="h-10 px-4 rounded-full bg-white text-sm font-bold text-[#4B4A6B] flex items-center shadow-[0_8px_24px_rgba(79,70,229,0.08)]">Guides coming soon</span>
       </Reveal>
-
-      <div className="grid md:grid-cols-3 gap-6">
-        {ARTICLES.map((a, i) => (
-          <Reveal key={a.title} delay={i * 80}>
-            <div className="group bg-white border border-slate-100 rounded-2xl p-6 h-full hover:border-indigo-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
-              <div className="flex items-center justify-between mb-5">
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-slate-600 ${a.tagBg}`}>
-                  {a.icon} {a.tag}
-                </span>
-                <ArrowUpRight size={18} className="text-slate-300 group-hover:text-indigo-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
-              </div>
-              <h3 className="font-bold text-slate-900 tracking-tight leading-snug">{a.title}</h3>
-              <p className="text-xs font-bold text-slate-400 mt-4">{a.readTime}</p>
+      <div className="mt-12 grid md:grid-cols-3 gap-5">
+        {ARTICLES.map(({ icon: Icon, tag, title, readTime, card, ink }, i) => (
+          <Reveal key={title} delay={i * 90} className={`relative overflow-hidden rounded-[32px] p-7 ${card}`}>
+            <div aria-hidden="true" className="absolute -right-10 -bottom-10 w-36 h-36 rounded-full bg-white/50" />
+            <div className="relative flex items-center justify-between">
+              <span className={`h-9 px-3.5 rounded-full bg-white flex items-center gap-2 text-[13px] font-extrabold ${ink}`}><Icon size={15} /> {tag}</span>
+              <span className="text-xs font-bold text-[#4B4A6B] flex items-center gap-1"><Clock size={12} /> {readTime}</span>
             </div>
+            <h3 className="relative mt-10 text-xl font-extrabold leading-snug text-[#1E1B4B]">{title}</h3>
+            <p className={`relative mt-4 text-sm font-bold ${ink}`}>Coming soon</p>
           </Reveal>
         ))}
       </div>

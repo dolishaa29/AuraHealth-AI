@@ -15,6 +15,9 @@ const LiveCapture = () => {
   const [error, setError] = useState(null);
   const [analysis, setAnalysis] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [sessionEndsAt, setSessionEndsAt] = useState(null);
+  const [secondsLeft, setSecondsLeft] = useState(0);
 
   const captureFrame = () => {
     const video = videoRef.current;
@@ -42,6 +45,11 @@ const LiveCapture = () => {
         body: JSON.stringify({ frame }),
       });
       const data = await res.json();
+      if (data.sessionEnded) {
+        stopCamera();
+        setError(data.message);
+        return;
+      }
       setAnalysis(data.success ? data.analysis : 'Analysis failed: ' + data.message);
     } catch (err) {
       console.error('Skin analysis fetch error:', err);
@@ -51,14 +59,44 @@ const LiveCapture = () => {
     }
   };
 
+  const startSession = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/skin-analysis/session`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${Cookies.get('token')}` },
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setError(data.message || 'Could not start a live session.');
+        return null;
+      }
+      if (data.charged) window.dispatchEvent(new Event('credits-changed'));
+      return new Date(data.expiresAt);
+    } catch {
+      setError('Could not reach server. Make sure backend is running.');
+      return null;
+    }
+  };
+
   const startCamera = async () => {
     setError(null);
     setAnalysis(null);
+    setStarting(true);
     try {
+
       const cameraStream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
         audio: false,
       });
+
+      const endsAt = await startSession();
+      if (!endsAt) {
+        cameraStream.getTracks().forEach(t => t.stop());
+        return;
+      }
+      setSessionEndsAt(endsAt);
+
       streamRef.current = cameraStream;
       videoRef.current.srcObject = cameraStream;
       videoRef.current.play();
@@ -76,6 +114,8 @@ const LiveCapture = () => {
       if (err.name === 'NotAllowedError') setError('Camera permission denied.');
       else if (err.name === 'NotFoundError') setError('No camera found on this device.');
       else setError('Could not open camera: ' + err.message);
+    } finally {
+      setStarting(false);
     }
   };
 
@@ -94,6 +134,24 @@ const LiveCapture = () => {
   };
 
   useEffect(() => {
+    if (!sessionEndsAt) return;
+    const tick = () => {
+      const left = Math.max(0, Math.round((sessionEndsAt.getTime() - Date.now()) / 1000));
+      setSecondsLeft(left);
+      if (left === 0) {
+        if (streamRef.current) {
+          stopCamera();
+          setError('Your 10-minute session has ended. Start the camera again to begin a new session (5 credits).');
+        }
+        setSessionEndsAt(null);
+      }
+    };
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [sessionEndsAt]);
+
+  useEffect(() => {
     return () => {
       clearInterval(intervalRef.current);
       clearInterval(analysisTimerRef.current);
@@ -101,172 +159,104 @@ const LiveCapture = () => {
     };
   }, []);
 
-  
   const renderAnalysis = (text) => {
-    return text.split('\n').map((line, i) => {
-      if (line.startsWith('**') && line.endsWith('**')) {
-        return <p key={i} className="text-slate-900 font-bold text-sm mt-3 first:mt-0">{line.replace(/\*\*/g, '')}</p>;
+    const sections = [];
+    text.split('\n').forEach((line) => {
+      const t = line.trim();
+      if (!t) return;
+      if (t.startsWith('**')) {
+        const [title, ...rest] = t.replace(/^\*\*/, '').split('**');
+        sections.push({ title: title.replace(/:$/, ''), lines: rest.join('').trim() ? [rest.join('').replace(/^:\s*/, '').trim()] : [] });
+      } else if (sections.length) {
+        sections[sections.length - 1].lines.push(t.replace(/^- /, ''));
+      } else {
+        sections.push({ title: '', lines: [t] });
       }
-      if (line.startsWith('- ')) {
-        return <p key={i} className="text-slate-600 text-sm pl-3 border-l-2 border-indigo-100 my-1">{line.slice(2)}</p>;
-      }
-      if (line.trim() === '') return null;
-      return <p key={i} className="text-slate-700 text-sm my-1">{line}</p>;
     });
+    const tints = ['bg-[#EEEDFF]', 'bg-[#FFF0E6]', 'bg-[#E6F1FF]', 'bg-[#E7F7EF]'];
+    return sections.map((s, i) => (
+      <div key={i} className={`p-4 rounded-[20px] ${tints[i % tints.length]}`}>
+        {s.title && <p className="mb-1.5 text-sm font-extrabold text-[#1E1B4B]">{s.title}</p>}
+        {s.lines.map((l, j) => <p key={j} className="text-sm leading-relaxed text-[#4B4A6B]">{l}</p>)}
+      </div>
+    ));
   };
 
-
+  const mins = Math.floor(secondsLeft / 60);
+  const secs = String(secondsLeft % 60).padStart(2, '0');
 
   return (
-    <div className="h-full overflow-y-auto md:overflow-hidden bg-[#fafaf9] p-4 md:p-6 flex flex-col gap-5">
-
-      <div className="motion-safe:animate-[fadeInUp_0.4s_ease-out_both] flex items-center gap-3 shrink-0">
-        <div className="p-2.5 bg-indigo-600 rounded-xl">
-          <Camera size={20} className="text-white" />
+    <div className="h-full overflow-y-auto px-4 py-6 sm:px-6 lg:px-2 lg:py-2">
+      <div className="flex flex-col gap-[22px] pb-24">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex-[1_1_300px]">
+            <h1 className="text-[28px] sm:text-[32px] font-extrabold tracking-[-0.025em]">Skin scan</h1>
+            <p className="mt-1.5 text-[15px] text-[#6B6A8A]">Point your camera at the area. AI checks it every few seconds.</p>
+          </div>
+          <span className="inline-flex items-center gap-2 h-11 px-5 rounded-full bg-[#EEEDFF] text-[#3730A3] text-sm font-bold">
+            {sessionEndsAt ? <>Session · {mins}:{secs} left</> : <>5 credits for 10 minutes</>}
+          </span>
         </div>
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900">Live Skin Analysis</h1>
-          <p className="text-xs text-slate-400 font-medium">Real-time camera · Gemini AI · auto-analyzes every 5s</p>
-        </div>
-      </div>
 
-      <div className="flex flex-col md:flex-row gap-5 flex-1 md:min-h-0">
+        {error && <p className="px-5 py-3 rounded-[20px] bg-[#FFECEB] text-[#B42318] text-sm font-semibold">{error}</p>}
 
-        <div
-          className="motion-safe:animate-[fadeInUp_0.4s_ease-out_both] flex flex-col gap-3 md:flex-3 min-w-0"
-          style={{ animationDelay: '80ms' }}
-        >
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden flex flex-col flex-1">
+        <div className="flex flex-wrap gap-5 items-start">
 
-            <div className="relative bg-slate-950 min-h-[280px] md:min-h-0 flex-1 flex items-center justify-center">
-              <video
-                ref={videoRef}
-                className={`w-full h-full object-cover ${isStreaming ? 'block' : 'hidden'}`}
-                playsInline
-                muted
-              />
-
+          <section className="flex-[999_1_480px] min-w-0 bg-white rounded-[32px] p-3 shadow-[0_8px_30px_rgba(79,70,229,0.06)]">
+            <div className="relative overflow-hidden rounded-[26px] bg-[#1E1B4B] aspect-video flex items-center justify-center">
+              <video ref={videoRef} className={`w-full h-full object-cover ${isStreaming ? 'block' : 'hidden'}`} playsInline muted />
+              <canvas ref={canvasRef} className="hidden" />
               {!isStreaming && (
-                <div className="flex flex-col items-center gap-3 text-slate-500">
-                  <VideoOff size={48} className="opacity-30" />
-                  <span className="text-sm font-medium opacity-50">Camera is off</span>
+                <div className="flex flex-col items-center gap-3 text-center px-6">
+                  <span className="w-20 h-20 rounded-full bg-[#312E81] text-[#C7D2FE] flex items-center justify-center"><Camera size={34} /></span>
+                  <p className="text-white text-lg font-extrabold">Camera is off</p>
+                  <p className="text-[#C7D2FE] text-sm">Good light and a steady hand give the best results.</p>
                 </div>
               )}
-
               {isStreaming && (
-                <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/50 backdrop-blur-sm px-3 py-1.5 rounded-full">
-                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                  <span className="text-white text-xs font-bold tracking-wider">LIVE</span>
-                </div>
+                <span className="absolute top-4 left-4 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/90 text-[#B42318] text-xs font-extrabold">
+                  <span className="w-2 h-2 rounded-full bg-[#F04438] animate-pulse" /> LIVE
+                </span>
               )}
-
               {isAnalyzing && (
-                <div className="absolute top-4 right-4 flex items-center gap-2 bg-indigo-600/80 backdrop-blur-sm px-3 py-1.5 rounded-full">
-                  <Loader2 size={12} className="text-white animate-spin" />
-                  <span className="text-white text-xs font-bold">Analyzing...</span>
-                </div>
+                <span className="absolute top-4 right-4 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-600 text-white text-xs font-bold">
+                  <Loader2 size={12} className="animate-spin" /> Analysing
+                </span>
               )}
             </div>
-
-            <canvas ref={canvasRef} className="hidden" />
-
-            <div className="px-5 py-4 flex items-center justify-between border-t border-slate-50">
-              <span className="text-xs text-slate-400 font-medium">
-                {isStreaming
-                  ? <>Frames: <span className="text-indigo-600 font-bold">{frameCount.toLocaleString()}</span></>
-                  : 'Click Start to begin'
-                }
+            <div className="flex flex-wrap items-center justify-between gap-3 px-3 pt-4 pb-2">
+              <span className="text-sm font-semibold text-[#6B6A8A]">
+                {isStreaming ? <>Frames <span className="font-extrabold text-indigo-600">{frameCount.toLocaleString()}</span></> : 'Your camera stays on your device until you start.'}
               </span>
-
-              <div className="flex items-center gap-2">
+              <div className="flex gap-2">
                 {isStreaming && (
-                  <button
-                    onClick={analyzeSkin}
-                    disabled={isAnalyzing}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs bg-emerald-500 hover:bg-emerald-600 text-white transition-all active:scale-95 disabled:opacity-50"
-                  >
-                    <Scan size={14} />
-                    Analyze Now
+                  <button onClick={analyzeSkin} disabled={isAnalyzing} className="h-11 px-5 rounded-full bg-[#E7F7EF] text-[#05603A] text-sm font-bold flex items-center gap-2 disabled:opacity-50">
+                    <Scan size={16} /> Analyse now
                   </button>
                 )}
-
-                <button
-                  onClick={isStreaming ? stopCamera : startCamera}
-                  className={`flex items-center gap-2 px-5 py-2 rounded-xl font-bold text-xs transition-all active:scale-95
-                    ${isStreaming
-                      ? 'bg-red-500 hover:bg-red-600 text-white'
-                      : 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                    }`}
-                >
-                  {isStreaming ? <VideoOff size={14} /> : <Video size={14} />}
-                  {isStreaming ? 'Stop' : 'Start Camera'}
+                <button onClick={isStreaming ? stopCamera : startCamera} disabled={starting}
+                  className={`h-11 px-6 rounded-full text-sm font-bold flex items-center gap-2 disabled:opacity-50 ${isStreaming ? 'bg-[#FFECEB] text-[#B42318]' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_10px_20px_-6px_rgba(79,70,229,0.5)]'}`}>
+                  {isStreaming ? <><VideoOff size={16} /> Stop</> : <><Video size={16} /> {starting ? 'Starting…' : 'Start camera'}</>}
                 </button>
               </div>
             </div>
-          </div>
+          </section>
 
-          {error && (
-            <div className="bg-red-50 border border-red-100 rounded-2xl px-4 py-3 text-red-600 text-xs font-medium shrink-0">
-              {error}
-            </div>
-          )}
+          <section className="flex-[1_1_320px] min-w-0 bg-white rounded-[28px] p-6 shadow-[0_8px_30px_rgba(79,70,229,0.06)] flex flex-col gap-3">
+            <h2 className="flex items-center gap-2 text-lg font-extrabold"><Sparkles size={18} className="text-indigo-600" /> What the AI sees</h2>
+            {analysis ? (
+              renderAnalysis(analysis)
+            ) : (
+              <div className="py-10 flex flex-col items-center text-center gap-3">
+                <span className="w-14 h-14 rounded-full bg-[#F6F6FD] text-[#9A99B5] flex items-center justify-center">
+                  {isAnalyzing ? <Loader2 size={24} className="animate-spin text-indigo-500" /> : <Scan size={24} />}
+                </span>
+                <p className="text-sm text-[#6B6A8A] max-w-[240px]">{isStreaming ? 'First result in a moment…' : 'Start the camera to get your skin type, concerns and tips.'}</p>
+              </div>
+            )}
+            <p className="mt-1 text-xs text-[#6B6A8A]">For guidance only, not a diagnosis. See a dermatologist for anything worrying.</p>
+          </section>
         </div>
-
-        <div
-          className="motion-safe:animate-[fadeInUp_0.4s_ease-out_both] min-h-[240px] md:min-h-0 md:flex-2 min-w-0 bg-white rounded-3xl border border-slate-100 shadow-sm flex flex-col overflow-hidden"
-          style={{ animationDelay: '150ms' }}
-        >
-          <div className="px-5 py-4 border-b border-slate-50 flex items-center gap-2 shrink-0">
-            <Sparkles size={16} className="text-indigo-500" />
-            <span className="text-sm font-bold text-slate-800">AI Skin Analysis</span>
-            {isAnalyzing && (
-              <Loader2 size={13} className="ml-auto text-indigo-400 animate-spin" />
-            )}
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-5">
-
-            {!analysis && !isAnalyzing && (
-              <div className="h-full flex flex-col items-center justify-center gap-3 text-center">
-                <div className="p-4 bg-slate-50 rounded-2xl">
-                  <Scan size={32} className="text-slate-300" />
-                </div>
-                <p className="text-slate-400 text-xs font-medium leading-relaxed">
-                  {isStreaming
-                    ? 'First analysis in a moment...'
-                    : 'Start the camera to begin skin analysis'
-                  }
-                </p>
-              </div>
-            )}
-
-            {isAnalyzing && !analysis && (
-              <div className="h-full flex flex-col items-center justify-center gap-3">
-                <Loader2 size={28} className="text-indigo-400 animate-spin" />
-                <p className="text-slate-400 text-xs font-medium">Sending frame to Gemini AI...</p>
-              </div>
-            )}
-
-            {analysis && (
-              <div className="space-y-1">
-                {renderAnalysis(analysis)}
-                {isAnalyzing && (
-                  <div className="flex items-center gap-2 mt-4 pt-4 border-t border-slate-50">
-                    <Loader2 size={12} className="text-indigo-400 animate-spin" />
-                    <span className="text-xs text-slate-400">Re-analyzing...</span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {analysis && (
-            <div className="px-5 py-3 border-t border-slate-50 shrink-0">
-              <p className="text-xs text-slate-300 font-medium">Updates every 5s · Powered by Gemini</p>
-            </div>
-          )}
-        </div>
-
       </div>
     </div>
   );

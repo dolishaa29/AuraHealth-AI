@@ -7,7 +7,7 @@ const PrivateRoute = ({ children }) => {
 
   if (!token) {
     return <>
-     
+
     <Navigate to="/Adminlogin"/>
     </>
   }

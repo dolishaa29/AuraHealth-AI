@@ -1,134 +1,82 @@
 import React from "react";
-import { Search, Building2, Sparkles, AlertTriangle } from "lucide-react";
+import { Search, Sparkles, AlertTriangle, Loader2, ChevronRight } from "lucide-react";
 
 const URGENCY_STYLES = {
-  high: "bg-red-50 text-red-600 border-red-100",
-  medium: "bg-amber-50 text-amber-600 border-amber-100",
-  low: "bg-emerald-50 text-emerald-600 border-emerald-100",
+  high: "bg-[#FFECEB] text-[#B42318]",
+  medium: "bg-[#FFF4E5] text-[#B45309]",
+  low: "bg-[#E7F7EF] text-[#05603A]",
 };
+const AVATARS = ["bg-[#FFF0E6] text-[#9A3412]", "bg-[#FFECEB] text-[#B42318]", "bg-[#E7F7EF] text-[#05603A]", "bg-[#E6F1FF] text-[#1E40AF]", "bg-[#EEEDFF] text-[#3730A3]"];
+const initials = (name = "") => name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "DR";
 
 const DoctorSearchStep = ({
   search, onSearchChange, loadingDoctors, filtered, getImageUrl, onSelectDoctor,
   symptoms, onSymptomsChange, onTriage, triageLoading, triageResult,
 }) => (
-  <>
-    <div className="mb-6 max-w-md bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-      <div className="flex items-center gap-2 mb-2">
-        <Sparkles size={14} className="text-indigo-500" />
-        <p className="text-xs font-bold text-slate-700">Not sure who to see? Describe your symptoms</p>
-      </div>
-      <div className="flex gap-2">
-        <input
-          type="text"
-          placeholder="e.g. persistent cough and mild fever for 3 days"
-          value={symptoms}
-          onChange={(e) => onSymptomsChange(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && onTriage()}
-          className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 transition-all"
-        />
-        <button
-          onClick={onTriage}
-          disabled={!symptoms.trim() || triageLoading}
-          className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-[11px] uppercase tracking-wider disabled:opacity-30 hover:bg-indigo-700 transition-all shrink-0"
-        >
-          {triageLoading ? "..." : "Check"}
-        </button>
-      </div>
-      {triageResult && (
-        <div className={`mt-3 border rounded-xl px-3 py-2 text-[11px] leading-relaxed ${URGENCY_STYLES[triageResult.urgency] || URGENCY_STYLES.low}`}>
-          {triageResult.urgency === "high" && (
-            <p className="flex items-center gap-1 font-bold mb-1"><AlertTriangle size={12} /> This may need urgent attention</p>
-          )}
-          {triageResult.specialization && (
-            <p className="font-bold">Suggested: {triageResult.specialization}</p>
-          )}
-          {triageResult.reasoning && <p className="mt-0.5">{triageResult.reasoning}</p>}
-        </div>
-      )}
-      <p className="text-[9px] text-slate-300 mt-2">AI suggestion only · Not a diagnosis</p>
-    </div>
+  <div className="flex flex-col gap-5">
 
-    <div className="relative mb-6 max-w-md">
-      <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" />
-      <input
-        type="text"
-        placeholder="Search by name or specialization..."
-        value={search}
-        onChange={(e) => onSearchChange(e.target.value)}
-        className="w-full pl-11 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 transition-all shadow-sm"
-      />
-    </div>
+    <section className="relative overflow-hidden rounded-[32px] bg-[#E9E8FF] p-6 sm:p-7">
+      <div aria-hidden="true" className="absolute -right-14 -top-16 w-56 h-56 rounded-full bg-[#DAD8FF]" />
+      <div className="relative">
+        <p className="flex items-center gap-2 text-sm font-extrabold text-indigo-600"><Sparkles size={16} /> Not sure who to see?</p>
+        <h2 className="mt-1 mb-4 text-xl sm:text-2xl font-extrabold tracking-tight">Tell us how you feel and we'll suggest a specialist</h2>
+        <div className="flex flex-wrap gap-2">
+          <label className="sr-only" htmlFor="symptoms">Your symptoms</label>
+          <input id="symptoms" value={symptoms} onChange={(e) => onSymptomsChange(e.target.value)} onKeyDown={(e) => e.key === "Enter" && onTriage()}
+            placeholder="e.g. itchy rash on my arm for 2 weeks"
+            className="flex-[1_1_260px] h-[52px] px-5 rounded-full bg-white text-[15px] font-medium placeholder:text-[#9A99B5] focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+          <button onClick={onTriage} disabled={triageLoading || !symptoms.trim()} className="h-[52px] px-6 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-[15px] font-bold flex items-center gap-2 disabled:opacity-50">
+            {triageLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />} Suggest
+          </button>
+        </div>
+        {triageResult && (
+          <div className="mt-4 p-4 rounded-[20px] bg-white flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {triageResult.specialization && <span className="px-3 py-1 rounded-full bg-indigo-600 text-white text-sm font-bold">{triageResult.specialization}</span>}
+              {triageResult.urgency && (
+                <span className={`px-3 py-1 rounded-full text-xs font-extrabold flex items-center gap-1 ${URGENCY_STYLES[triageResult.urgency] || URGENCY_STYLES.low}`}>
+                  {triageResult.urgency === "high" && <AlertTriangle size={12} />} {triageResult.urgency} urgency
+                </span>
+              )}
+            </div>
+            {triageResult.reasoning && <p className="text-sm text-[#4B4A6B]">{triageResult.reasoning}</p>}
+          </div>
+        )}
+      </div>
+    </section>
+
+    <label className="flex items-center gap-3 h-14 px-[22px] rounded-full bg-white text-[#6B6A8A] shadow-[0_8px_30px_rgba(79,70,229,0.06)] focus-within:ring-2 focus-within:ring-indigo-200">
+      <Search size={20} />
+      <span className="sr-only">Search doctors</span>
+      <input value={search} onChange={(e) => onSearchChange(e.target.value)} placeholder="Search by name or specialty"
+        className="flex-1 bg-transparent text-[15px] text-[#1E1B4B] placeholder:text-[#9A99B5] focus:outline-none" />
+    </label>
 
     {loadingDoctors ? (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {[1, 2, 3, 4, 5, 6].map((n) => <SkeletonCard key={n} />)}
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
+        {[1, 2, 3].map((n) => <div key={n} className="h-24 rounded-[24px] bg-white animate-pulse" />)}
       </div>
+    ) : filtered.length === 0 ? (
+      <p className="py-10 text-center text-[#6B6A8A] font-semibold">No doctors match your search.</p>
     ) : (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {filtered.map((doc, i) => (
-          <div
-            key={doc._id}
-            className="motion-safe:animate-[fadeInUp_0.35s_ease-out_both]"
-            style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}
-          >
-            <DoctorCard
-              doctor={doc}
-              imageUrl={getImageUrl(doc.image)}
-              onSelect={() => onSelectDoctor(doc)}
-            />
-          </div>
-        ))}
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
+        {filtered.map((doc, i) => {
+          const img = getImageUrl(doc.image);
+          return (
+            <button key={doc._id} onClick={() => onSelectDoctor(doc)}
+              className="group flex items-center gap-3.5 p-4 rounded-[24px] bg-white text-left shadow-[0_8px_30px_rgba(79,70,229,0.06)] hover:shadow-[0_0_0_2px_#4F46E5] transition-shadow">
+              {img ? <img src={img} alt="" className="w-14 h-14 shrink-0 rounded-full object-cover" />
+                : <span className={`w-14 h-14 shrink-0 rounded-full flex items-center justify-center text-lg font-extrabold ${AVATARS[i % AVATARS.length]}`}>{initials(doc.name)}</span>}
+              <span className="flex-1 min-w-0">
+                <span className="block text-base font-extrabold truncate">Dr. {doc.name}</span>
+                <span className="block text-[13px] text-[#6B6A8A] truncate">{doc.specialization || "General physician"}{doc.hospitalName ? ` · ${doc.hospitalName}` : ""}</span>
+              </span>
+              <ChevronRight size={18} className="text-[#C9C8E0] group-hover:text-indigo-600" />
+            </button>
+          );
+        })}
       </div>
     )}
-  </>
-);
-
-const SkeletonCard = () => (
-  <div className="bg-white rounded-3xl border border-slate-100 overflow-hidden animate-pulse">
-    <div className="h-44 bg-slate-100" />
-    <div className="p-5 space-y-3">
-      <div className="h-2 bg-slate-100 rounded-full w-1/3" />
-      <div className="h-4 bg-slate-100 rounded-full w-2/3" />
-      <div className="h-10 bg-slate-100 rounded-2xl mt-2" />
-    </div>
-  </div>
-);
-
-const DoctorCard = ({ doctor, imageUrl, onSelect }) => (
-  <div
-    onClick={onSelect}
-    className="group bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-indigo-50 hover:border-indigo-100 hover:-translate-y-1 transition-all duration-300 overflow-hidden cursor-pointer flex flex-col"
-  >
-    <div className="relative h-44 overflow-hidden shrink-0">
-      {imageUrl
-        ? <img src={imageUrl} alt={doctor.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-        : <div className="w-full h-full bg-indigo-50 flex items-center justify-center"><span className="text-6xl font-bold text-indigo-200">{doctor.name?.[0]}</span></div>}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
-      {doctor.experienceYears && (
-        <div className="absolute top-3 right-3 bg-white/90 backdrop-blur px-2.5 py-1.5 rounded-xl shadow-sm">
-          <p className="text-[10px] font-bold text-slate-800 leading-none">{doctor.experienceYears}Y+</p>
-          <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Exp</p>
-        </div>
-      )}
-      <div className="absolute bottom-3 left-3">
-        <span className="text-[10px] font-bold text-white/90 bg-black/20 backdrop-blur-sm px-2.5 py-1 rounded-lg uppercase tracking-wider">
-          {doctor.specialization || "General"}
-        </span>
-      </div>
-    </div>
-    <div className="p-5 flex flex-col flex-1">
-      <h3 className="font-bold text-slate-900 tracking-tight text-base">Dr. {doctor.name}</h3>
-      {doctor.hospitalName && (
-        <div className="flex items-center gap-1.5 mt-1.5 text-slate-400">
-          <Building2 size={11} /><span className="text-[11px] truncate">{doctor.hospitalName}</span>
-        </div>
-      )}
-      <div className="mt-auto pt-4">
-        <button className="w-full py-3 rounded-2xl bg-indigo-600 text-white font-bold text-[11px] uppercase tracking-widest group-hover:bg-indigo-700 transition-all duration-300">
-          Select Doctor
-        </button>
-      </div>
-    </div>
   </div>
 );
 

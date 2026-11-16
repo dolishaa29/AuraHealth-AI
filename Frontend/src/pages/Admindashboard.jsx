@@ -1,54 +1,31 @@
 import React, { useState, useEffect } from "react";
 import Cookies from "js-cookie";
 import axios from "axios";
-import { Users, UserPlus, Stethoscope, AlertCircle, RefreshCw } from "lucide-react";
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
-} from "recharts";
+import { useNavigate } from "react-router-dom";
+import { Users, UserPlus, Stethoscope, AlertCircle, RefreshCw, CalendarCheck, ChevronRight } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
-const STATS_CONFIG = [
-  { key: "totalDoctors",    label: "Doctors",          icon: Stethoscope, bg: "bg-indigo-50",  text: "text-indigo-600"  },
-  { key: "totalUsers",      label: "Patients",         icon: Users,       bg: "bg-violet-50",  text: "text-violet-600"  },
-  { key: "pendingRequests", label: "Pending Requests", icon: UserPlus,    bg: "bg-amber-50",   text: "text-amber-600"   },
+const TILES = [
+  { key: "pendingRequests", label: "doctor requests waiting", icon: UserPlus, bg: "bg-[#FFF4E5]", fg: "text-[#B45309]", path: "/Doctorrequest" },
+  { key: "totalDoctors", label: "doctors on AuraHealth", icon: Stethoscope, bg: "bg-[#EEEDFF]", fg: "text-[#3730A3]", path: "/Viewdoctor" },
+  { key: "totalUsers", label: "patients signed up", icon: Users, bg: "bg-[#E6F1FF]", fg: "text-[#1E40AF]", path: "/Viewusers" },
 ];
-
-const StatCard = ({ label, value, icon: Icon, bg, text }) => (
-  <div className="flex-1 bg-white border border-slate-100 rounded-2xl p-6 shadow-sm">
-    <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center mb-4`}>
-      <Icon size={18} className={text} />
-    </div>
-    <p className={`text-4xl font-bold ${text} mb-1`}>
-      {value ?? <span className="text-slate-200">—</span>}
-    </p>
-    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{label}</p>
-  </div>
-);
-
-const StatSkeleton = () => (
-  <div className="flex-1 bg-white border border-slate-100 rounded-2xl p-6">
-    <div className="w-10 h-10 rounded-xl bg-slate-100 animate-pulse mb-4" />
-    <div className="h-9 w-14 bg-slate-200/70 rounded animate-pulse mb-2" />
-    <div className="h-2.5 w-24 bg-slate-100 rounded animate-pulse" />
-  </div>
-);
+const BAR_COLORS = { Pending: "#F59E0B", Approved: "#12B76A", Rejected: "#F04438" };
 
 const ChartTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-slate-100 rounded-xl px-4 py-2.5 shadow-lg text-sm font-bold text-slate-700">
+    <div className="px-4 py-2.5 rounded-full bg-white shadow-[0_8px_30px_rgba(79,70,229,0.12)] text-sm font-bold">
       {payload[0].payload.label}: <span className="text-indigo-600">{payload[0].value}</span>
     </div>
   );
 };
 
-const BAR_COLORS = { Pending: "#f59e0b", Approved: "#10b981", Rejected: "#f43f5e" };
-
 const Admindashboard = () => {
-  const [data, setData]       = useState(null);
+  const navigate = useNavigate();
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState("");
-
-  useEffect(() => { fetchDashboard(); }, []);
+  const [error, setError] = useState("");
 
   const fetchDashboard = async () => {
     setLoading(true);
@@ -66,87 +43,113 @@ const Admindashboard = () => {
     }
   };
 
-  return (
-    <div className="h-full overflow-y-auto md:overflow-hidden flex flex-col bg-slate-50 px-6 py-8 md:px-10 gap-5">
+  useEffect(() => { fetchDashboard(); }, []);
 
-      {error && (
-        <div className="motion-safe:animate-[fadeInUp_0.4s_ease-out_both] shrink-0 flex items-center justify-between gap-4 bg-red-50 border border-red-100 rounded-2xl px-5 py-4">
-          <div className="flex items-center gap-3">
-            <AlertCircle size={18} className="text-red-500 shrink-0" />
-            <p className="text-sm font-semibold text-red-700">{error}</p>
+  const chart = data?.appointmentChart ?? [];
+  const totalAppointments = chart.reduce((sum, c) => sum + (c.value || 0), 0);
+  const pendingAppointments = chart.find((c) => c.label === "Pending")?.value || 0;
+  const pendingDoctors = data?.pendingRequests || 0;
+
+  return (
+    <div className="h-full overflow-y-auto px-4 py-6 sm:px-6 lg:px-2 lg:py-2">
+      <div className="flex flex-col gap-[22px] pb-16">
+        <div>
+          <h1 className="text-[28px] sm:text-[32px] font-extrabold tracking-[-0.025em]">Hello, Admin</h1>
+          <p className="mt-1.5 text-[15px] text-[#6B6A8A]">Here's how AuraHealth is doing today.</p>
+        </div>
+
+        {error && (
+          <div className="flex items-center justify-between gap-4 px-5 py-3 rounded-[20px] bg-[#FFECEB] text-[#B42318] text-sm font-semibold">
+            <span className="flex items-center gap-2"><AlertCircle size={16} /> {error}</span>
+            <button onClick={fetchDashboard} className="flex items-center gap-1.5 font-bold"><RefreshCw size={14} /> Retry</button>
           </div>
-          <button
-            onClick={fetchDashboard}
-            className="shrink-0 flex items-center gap-1.5 text-xs font-bold text-red-700 hover:text-red-800 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors"
-          >
-            <RefreshCw size={13} /> Retry
+        )}
+
+        <section className="relative overflow-hidden rounded-[32px] bg-[#E9E8FF] p-6 sm:p-8 flex flex-wrap items-center gap-6">
+          <div aria-hidden="true" className="absolute -right-14 -top-20 w-72 h-72 rounded-full bg-[#DAD8FF]" />
+          <div aria-hidden="true" className="absolute right-28 -bottom-24 w-52 h-52 rounded-full bg-[#D2CFFF]" />
+          <div className="relative flex-[1_1_340px]">
+            <span className="inline-flex px-3.5 py-1.5 rounded-full bg-white text-indigo-600 text-[13px] font-bold">Needs your attention</span>
+            <h2 className="mt-4 mb-1.5 text-2xl sm:text-[28px] font-extrabold tracking-tight">
+              {loading ? "Checking…" : pendingDoctors + pendingAppointments === 0 ? "You're all caught up" : `${pendingDoctors} doctor${pendingDoctors === 1 ? "" : "s"} and ${pendingAppointments} appointment${pendingAppointments === 1 ? "" : "s"} to review`}
+            </h2>
+            <p className="mb-5 text-[15px] text-[#4B4A6B]">Approve new doctors so patients can book them, and confirm appointment requests.</p>
+            <div className="flex flex-wrap gap-2.5">
+              <button onClick={() => navigate("/Doctorrequest")} className="h-12 px-6 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-[15px] font-bold shadow-[0_10px_20px_-6px_rgba(79,70,229,0.5)]">Review doctors</button>
+              <button onClick={() => navigate("/ViewAppointment")} className="h-12 px-[22px] rounded-full bg-white text-[#312E81] text-[15px] font-bold">Review appointments</button>
+            </div>
+          </div>
+          <div className="relative hidden sm:flex w-[132px] h-[132px] rounded-full bg-white text-indigo-600 flex-col items-center justify-center shadow-[0_16px_40px_rgba(79,70,229,0.18)]">
+            <span className="text-[40px] font-extrabold leading-none">{loading ? "…" : pendingDoctors + pendingAppointments}</span>
+            <span className="text-xs font-bold text-[#6B6A8A]">pending</span>
+          </div>
+        </section>
+
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
+          {TILES.map(({ key, label, icon: Icon, bg, fg, path }) => (
+            <button key={key} onClick={() => navigate(path)} className={`flex flex-col gap-3.5 p-[22px] rounded-[26px] text-left ${bg} ${fg} hover:-translate-y-0.5 transition-transform`}>
+              <span className="w-11 h-11 rounded-full bg-white flex items-center justify-center"><Icon size={20} /></span>
+              <span>
+                <span className="block text-[28px] font-extrabold leading-tight">{loading ? "—" : data?.[key] ?? 0}</span>
+                <span className="text-sm font-semibold">{label}</span>
+              </span>
+            </button>
+          ))}
+          <button onClick={() => navigate("/ViewAppointment")} className="flex flex-col gap-3.5 p-[22px] rounded-[26px] text-left bg-[#E7F7EF] text-[#05603A] hover:-translate-y-0.5 transition-transform">
+            <span className="w-11 h-11 rounded-full bg-white flex items-center justify-center"><CalendarCheck size={20} /></span>
+            <span>
+              <span className="block text-[28px] font-extrabold leading-tight">{loading ? "—" : totalAppointments}</span>
+              <span className="text-sm font-semibold">appointment requests</span>
+            </span>
           </button>
         </div>
-      )}
 
-      { }
-      <div className="motion-safe:animate-[fadeInUp_0.4s_ease-out_both] shrink-0 flex flex-col sm:flex-row gap-5">
-        {loading ? (
-          <>
-            <StatSkeleton />
-            <StatSkeleton />
-            <StatSkeleton />
-          </>
-        ) : (
-          STATS_CONFIG.map(({ key, ...cfg }) => (
-            <StatCard key={key} {...cfg} value={data?.[key]} />
-          ))
-        )}
-      </div>
-
-      { }
-      <div
-        className="motion-safe:animate-[fadeInUp_0.4s_ease-out_both] flex-1 min-h-[340px] md:min-h-0 bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex flex-col"
-        style={{ animationDelay: '80ms' }}
-      >
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Appointments</p>
-        <p className="text-sm font-bold text-slate-700 mb-6">Breakdown by status</p>
-
-        <div className="flex-1 min-h-0">
-          {loading ? (
-            <div className="w-full h-full bg-slate-50 rounded-xl animate-pulse" />
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data?.appointmentChart ?? []} barSize={56}>
-                <XAxis
-                  dataKey="label"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 11, fontWeight: 700, fill: "#94a3b8" }}
-                />
-                <YAxis
-                  allowDecimals={false}
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 11, fill: "#94a3b8" }}
-                  width={28}
-                />
-                <Tooltip content={<ChartTooltip />} cursor={{ fill: "#fafaf9" }} />
-                <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                  {(data?.appointmentChart ?? []).map((entry) => (
-                    <Cell key={entry.label} fill={BAR_COLORS[entry.label] ?? "#818cf8"} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-
-        <div className="flex gap-5 mt-4 justify-center">
-          {Object.entries(BAR_COLORS).map(([label, color]) => (
-            <div key={label} className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
-              <span className="text-[11px] font-bold text-slate-400">{label}</span>
+        <div className="flex flex-wrap gap-5 items-start">
+          <section className="flex-[999_1_460px] min-w-0 bg-white rounded-[28px] p-6 shadow-[0_8px_30px_rgba(79,70,229,0.06)]">
+            <h2 className="text-xl font-extrabold">Appointment requests</h2>
+            <p className="mt-1 mb-5 text-sm text-[#6B6A8A]">How requests have been handled so far</p>
+            <div className="h-[280px]">
+              {loading ? (
+                <div className="w-full h-full rounded-[20px] bg-[#F6F6FD] animate-pulse" />
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chart} barSize={64}>
+                    <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 13, fontWeight: 700, fill: "#6B6A8A" }} />
+                    <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#8F8EAB" }} width={28} />
+                    <Tooltip content={<ChartTooltip />} cursor={{ fill: "#F6F6FD", radius: 16 }} />
+                    <Bar dataKey="value" radius={[16, 16, 16, 16]}>
+                      {chart.map((entry) => <Cell key={entry.label} fill={BAR_COLORS[entry.label] ?? "#818CF8"} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
-          ))}
+            <div className="flex flex-wrap gap-2 mt-4">
+              {Object.entries(BAR_COLORS).map(([label, color]) => (
+                <span key={label} className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#F6F6FD] text-[13px] font-bold">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />{label}
+                </span>
+              ))}
+            </div>
+          </section>
+
+          <section className="flex-[1_1_300px] min-w-0 bg-white rounded-[28px] p-6 shadow-[0_8px_30px_rgba(79,70,229,0.06)] flex flex-col gap-2.5">
+            <h2 className="mb-1 text-lg font-extrabold">Shortcuts</h2>
+            {[
+              ["Doctor requests", "/Doctorrequest", "bg-[#FFF4E5] text-[#B45309]", UserPlus],
+              ["All doctors", "/Viewdoctor", "bg-[#EEEDFF] text-[#3730A3]", Stethoscope],
+              ["All patients", "/Viewusers", "bg-[#E6F1FF] text-[#1E40AF]", Users],
+              ["Appointments", "/ViewAppointment", "bg-[#E7F7EF] text-[#05603A]", CalendarCheck],
+            ].map(([label, path, tint, Icon]) => (
+              <button key={path} onClick={() => navigate(path)} className="flex items-center gap-3 p-3 rounded-[20px] bg-[#F6F6FD] hover:bg-[#EEEDFF] text-left">
+                <span className={`w-10 h-10 rounded-full flex items-center justify-center ${tint}`}><Icon size={18} /></span>
+                <span className="flex-1 text-sm font-bold">{label}</span>
+                <ChevronRight size={18} className="text-[#C9C8E0]" />
+              </button>
+            ))}
+          </section>
         </div>
       </div>
-
     </div>
   );
 };

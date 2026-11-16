@@ -1,33 +1,28 @@
 import React from "react";
-import { CheckCircle2, Clock, Calendar } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Check } from "lucide-react";
 import { formatTime } from "./utils";
 
-const SuccessScreen = ({ selectedDoctor, selectedDate, selectedSlot, onReset }) => (
-  <div className="h-full overflow-y-auto bg-slate-50 flex items-center justify-center p-6 sm:p-10">
-    <div className="motion-safe:animate-[fadeInUp_0.4s_ease-out_both] text-center max-w-md">
-      <div className="relative mx-auto mb-8 w-24 h-24">
-        <div className="absolute inset-0 bg-emerald-100 rounded-full animate-ping opacity-30" />
-        <div className="relative w-24 h-24 bg-emerald-500 rounded-full flex items-center justify-center shadow-xl">
-          <CheckCircle2 className="text-white" size={44} strokeWidth={1.5} />
+const SuccessScreen = ({ selectedDoctor, selectedDate, selectedSlot, onReset }) => {
+  const navigate = useNavigate();
+  return (
+    <div className="h-full overflow-y-auto flex items-center justify-center p-6">
+      <section className="relative overflow-hidden w-full max-w-md rounded-[36px] bg-[#E7F7EF] p-8 text-center">
+        <div aria-hidden="true" className="absolute -right-16 -top-16 w-52 h-52 rounded-full bg-[#D1F2E1]" />
+        <span className="relative mx-auto w-20 h-20 rounded-full bg-[#12B76A] text-white flex items-center justify-center shadow-[0_16px_30px_rgba(18,183,106,0.35)]">
+          <Check size={38} strokeWidth={3} />
+        </span>
+        <h1 className="relative mt-5 text-[28px] font-extrabold tracking-tight text-[#054F31]">You're booked!</h1>
+        <p className="relative mt-2 text-[15px] text-[#05603A]">
+          Dr. {selectedDoctor?.name} on {new Date(selectedDate).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" })} at {formatTime(selectedSlot)}.
+        </p>
+        <div className="relative mt-6 flex flex-col gap-2.5">
+          <button onClick={() => navigate("/userviewapp")} className="h-[52px] rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-base font-extrabold">See my appointments</button>
+          <button onClick={onReset} className="h-[52px] rounded-full bg-white text-[#054F31] text-base font-bold">Book another</button>
         </div>
-      </div>
-      <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight mb-2">Appointment Booked!</h2>
-      <p className="text-slate-400 text-sm mb-1">Your slot is confirmed with</p>
-      <p className="text-indigo-600 font-bold text-xl mb-2">Dr. {selectedDoctor?.name}</p>
-      <div className="flex items-center justify-center gap-2 text-slate-500 text-sm mb-8 flex-wrap">
-        <Calendar size={14} />
-        <span>{selectedDate}</span>
-        <Clock size={14} className="ml-2" />
-        <span>{formatTime(selectedSlot)}</span>
-      </div>
-      <button
-        onClick={onReset}
-        className="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl shadow-sm transition-all"
-      >
-        Book Another Slot
-      </button>
+      </section>
     </div>
-  </div>
-);
+  );
+};
 
 export default SuccessScreen;

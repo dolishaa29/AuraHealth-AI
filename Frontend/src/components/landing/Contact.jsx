@@ -1,124 +1,69 @@
 import React, { useState } from 'react';
-import { Mail, MessageCircle, MapPin, Send, CheckCircle2 } from 'lucide-react';
+import { Mail, MessageCircle, Globe, Send } from 'lucide-react';
 import Reveal from './Reveal';
 
+const SUPPORT_EMAIL = 'support@aurahealth.app';
+
 const CHANNELS = [
-  {
-    icon: <Mail size={20} className="text-indigo-600" />,
-    title: 'Email us',
-    detail: 'support@aurahealth.app',
-    description: 'For account, billing or general questions.',
-  },
-  {
-    icon: <MessageCircle size={20} className="text-indigo-600" />,
-    title: 'In-app chat',
-    detail: 'Available after sign in',
-    description: 'Patients and doctors can message support from their dashboard.',
-  },
-  {
-    icon: <MapPin size={20} className="text-indigo-600" />,
-    title: 'Headquarters',
-    detail: 'Remote-first team',
-    description: 'We work with clinics and patients wherever they are.',
-  },
+  { icon: Mail, title: 'Email us', detail: SUPPORT_EMAIL, description: 'Account, credits or general questions.', tint: 'bg-[#E9E8FF] text-indigo-600' },
+  { icon: MessageCircle, title: 'In-app chat', detail: 'From your dashboard', description: 'Patients and doctors can message from inside the app.', tint: 'bg-[#E7F7EF] text-[#05603A]' },
+  { icon: Globe, title: 'Remote-first team', detail: 'Wherever you are', description: 'We work with patients and doctors across India.', tint: 'bg-[#FFF0E6] text-[#9A3412]' },
 ];
 
-const Contact = () => {
-  const [submitted, setSubmitted] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', message: '' });
+const inputCls = 'w-full h-[52px] px-5 rounded-full bg-[#F6F6FD] border-2 border-transparent text-[15px] font-medium text-[#1E1B4B] placeholder:text-[#9A99B5] focus:outline-none focus:border-indigo-300 focus:bg-white';
 
+const Contact = () => {
+  const [form, setForm] = useState({ name: '', email: '', message: '' });
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    setSubmitted(true);
+    const subject = encodeURIComponent(`Message from ${form.name}`);
+    const body = encodeURIComponent(`${form.message}\n\n${form.name}\n${form.email}`);
+    window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
   };
 
   return (
-    <section id="contact">
-      <div className="max-w-5xl mx-auto px-6 md:px-10 py-20 md:py-28">
-        <Reveal className="text-center">
-          <p className="text-[11px] font-bold text-indigo-500 tracking-[0.2em] uppercase mb-3">Get In Touch</p>
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">
-            We'd love to hear from you
-          </h2>
+    <section id="contact" className="px-4 sm:px-6 py-24">
+      <div className="max-w-6xl mx-auto">
+        <Reveal className="max-w-2xl mx-auto text-center">
+          <p className="text-sm font-extrabold text-indigo-600">Get in touch</p>
+          <h2 className="mt-2 text-[34px] md:text-[48px] font-extrabold leading-[1.08] tracking-[-0.035em] text-[#1E1B4B]">We’d love to hear from you</h2>
         </Reveal>
 
-        <div className="grid md:grid-cols-3 gap-6 mt-14 mb-10">
-          {CHANNELS.map((c, i) => (
-            <Reveal key={c.title} delay={i * 80}>
-              <div className="bg-white border border-slate-100 rounded-2xl p-6 h-full hover:border-indigo-200 hover:shadow-md transition-all duration-300">
-                <div className="w-11 h-11 bg-indigo-50 rounded-xl flex items-center justify-center mb-4">
-                  {c.icon}
+        <div className="mt-14 grid lg:grid-cols-[0.9fr_1.1fr] gap-5 items-start">
+          <div className="flex flex-col gap-4">
+            {CHANNELS.map(({ icon: Icon, title, detail, description, tint }, i) => (
+              <Reveal key={title} delay={i * 80} className="flex items-start gap-4 p-6 rounded-[28px] bg-white shadow-[0_8px_30px_rgba(79,70,229,0.08)]">
+                <span className={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center ${tint}`}><Icon size={22} /></span>
+                <div className="min-w-0">
+                  <p className="text-[16px] font-extrabold text-[#1E1B4B]">{title}</p>
+                  <p className="text-sm font-bold text-indigo-600 break-all">{detail}</p>
+                  <p className="mt-1 text-sm text-[#4B4A6B]">{description}</p>
                 </div>
-                <h3 className="font-bold text-slate-900 tracking-tight">{c.title}</h3>
-                <p className="text-sm font-bold text-indigo-600 mt-1">{c.detail}</p>
-                <p className="text-sm text-slate-500 mt-2 leading-relaxed">{c.description}</p>
-              </div>
-            </Reveal>
-          ))}
-        </div>
-
-        <Reveal>
-          <div className="bg-white border border-slate-100 rounded-3xl p-8 md:p-10 max-w-2xl mx-auto shadow-sm">
-            {submitted ? (
-              <div className="text-center py-10">
-                <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
-                  <CheckCircle2 size={26} className="text-emerald-600" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 tracking-tight">Message sent</h3>
-                <p className="text-slate-500 mt-2">Thanks for reaching out — we'll get back to you shortly.</p>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-5">
-                <div className="grid sm:grid-cols-2 gap-5">
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 block">Name</label>
-                    <input
-                      type="text"
-                      name="name"
-                      required
-                      value={form.name}
-                      onChange={handleChange}
-                      placeholder="Jane Doe"
-                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 block">Email</label>
-                    <input
-                      type="email"
-                      name="email"
-                      required
-                      value={form.email}
-                      onChange={handleChange}
-                      placeholder="jane@example.com"
-                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 transition-all"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 block">Message</label>
-                  <textarea
-                    name="message"
-                    required
-                    rows={5}
-                    value={form.message}
-                    onChange={handleChange}
-                    placeholder="How can we help?"
-                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 transition-all resize-none"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="w-full sm:w-auto px-8 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-2xl shadow-sm transition-colors duration-200 active:scale-[0.98] inline-flex items-center justify-center gap-2"
-                >
-                  Send Message <Send size={16} />
-                </button>
-              </form>
-            )}
+              </Reveal>
+            ))}
           </div>
-        </Reveal>
+
+          <Reveal className="relative overflow-hidden rounded-[36px] bg-[#E9E8FF] p-7 sm:p-9">
+            <div aria-hidden="true" className="absolute -right-16 -top-16 w-56 h-56 rounded-full bg-[#DAD8FF]" />
+            <form onSubmit={handleSubmit} className="relative flex flex-col gap-4">
+              <p className="text-2xl font-extrabold text-[#1E1B4B]">Send us a message</p>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <label className="flex flex-col gap-1.5 text-sm font-bold text-[#312E81]">Name<input name="name" required value={form.name} onChange={handleChange} placeholder="Your name" className={inputCls.replace('bg-[#F6F6FD]', 'bg-white')} /></label>
+                <label className="flex flex-col gap-1.5 text-sm font-bold text-[#312E81]">Email<input name="email" type="email" required value={form.email} onChange={handleChange} placeholder="you@example.com" className={inputCls.replace('bg-[#F6F6FD]', 'bg-white')} /></label>
+              </div>
+              <label className="flex flex-col gap-1.5 text-sm font-bold text-[#312E81]">Message
+                <textarea name="message" required rows={5} value={form.message} onChange={handleChange} placeholder="How can we help?"
+                  className="w-full px-5 py-4 rounded-[24px] bg-white border-2 border-transparent text-[15px] font-medium text-[#1E1B4B] placeholder:text-[#9A99B5] focus:outline-none focus:border-indigo-300 resize-none" />
+              </label>
+              <button type="submit" className="h-14 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-base font-extrabold flex items-center justify-center gap-2 shadow-[0_14px_28px_-10px_rgba(79,70,229,0.6)]">
+                <Send size={17} /> Send message
+              </button>
+              <p className="text-center text-xs text-[#4B4A6B]">Opens your email app with the message ready to send.</p>
+            </form>
+          </Reveal>
+        </div>
       </div>
     </section>
   );

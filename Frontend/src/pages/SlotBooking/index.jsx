@@ -105,7 +105,10 @@ const SlotBooking = () => {
         { doctorid: selectedDoctor._id, date: selectedDate, time: selectedSlot, description },
         { headers: { Authorization: `Bearer ${Cookies.get("token")}` }, withCredentials: true }
       );
-      if (res.data.success) setSuccess(true);
+      if (res.data.success) {
+        setSuccess(true);
+        window.dispatchEvent(new Event("credits-changed"));
+      }
       else setError(res.data.msg || "Booking failed.");
     } catch (err) {
       setError(err.response?.data?.msg || "Error booking slot.");
@@ -133,13 +136,21 @@ const SlotBooking = () => {
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-slate-50 px-6 py-10 md:px-10">
-      <div className="motion-safe:animate-[fadeInUp_0.4s_ease-out_both] mb-8">
-        <p className="text-[10px] font-bold text-indigo-500 tracking-[0.2em] uppercase mb-1">Direct Scheduling</p>
-        <h1 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight">
-          Book a <span className="text-indigo-600">Slot</span>
-        </h1>
-        <p className="text-slate-400 text-sm mt-1">{stepLabel}</p>
+    <div className="h-full overflow-y-auto px-4 py-6 sm:px-6 lg:px-2 lg:py-2">
+      <div className="mb-6 flex flex-wrap items-end gap-4">
+        <div className="flex-[1_1_300px]">
+          <h1 className="text-[28px] sm:text-[32px] font-extrabold tracking-[-0.025em]">Book a slot</h1>
+          <p className="mt-1.5 text-[15px] text-[#6B6A8A]">{stepLabel}</p>
+        </div>
+        <ol aria-label="Booking steps" className="flex gap-2">
+          {["Doctor", "Date & time", "Confirm"].map((label, i) => (
+            <li key={label} aria-current={step === i + 1 ? "step" : undefined}
+              className={`flex items-center gap-2 h-10 pl-1.5 pr-4 rounded-full text-sm font-bold ${step === i + 1 ? "bg-indigo-600 text-white" : step > i + 1 ? "bg-[#E7F7EF] text-[#05603A]" : "bg-white text-[#6B6A8A]"}`}>
+              <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-extrabold ${step === i + 1 ? "bg-white text-indigo-600" : "bg-[#F6F6FD]"}`}>{i + 1}</span>
+              <span className="hidden sm:inline">{label}</span>
+            </li>
+          ))}
+        </ol>
       </div>
 
       <div key={step} className="motion-safe:animate-[fadeInUp_0.35s_ease-out_both]">

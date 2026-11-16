@@ -37,27 +37,27 @@ const Viewuserall = () => {
     fetchUser();
   }, [id]);
 
-  const infoLabelStyle = "block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-1";
-  const infoValueStyle = "text-slate-800 font-medium bg-white/50 border border-slate-100 px-4 py-2.5 rounded-xl shadow-sm backdrop-blur-sm";
+  const infoLabelStyle = "block text-[13px] font-bold text-slate-500 mb-1 ml-1";
+  const infoValueStyle = "text-slate-800 font-medium bg-white/50 border border-slate-100 px-4 py-2.5 rounded-[16px] shadow-sm backdrop-blur-sm";
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#fafaf9]">
+      <div className="min-h-screen flex items-center justify-center bg-[#F6F6FD]">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen w-full bg-[#fafaf9] bg-[radial-gradient(ellipse_at_top,_#f4f6ec,_#fafaf9)] font-sans py-12 px-4 relative overflow-x-hidden">
-      <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-100/40 blur-[100px] rounded-full -z-10" />
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-100/40 blur-[100px] rounded-full -z-10" />
+    <div className="min-h-screen w-full bg-[#F6F6FD] font-sans py-12 px-4 relative overflow-x-hidden">
+      <div className="absolute top-0 right-0 w-96 h-96 bg-[#DAD8FF]/50 blur-[100px] rounded-full -z-10" />
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#DAD8FF]/50 blur-[100px] rounded-full -z-10" />
 
-      <div className="max-w-4xl mx-auto bg-white/70 backdrop-blur-2xl rounded-[2.5rem] border border-white shadow-[0_30px_60px_-15px_rgba(86,107,46,0.08)] p-6 md:p-12">
-        
+      <div className="max-w-4xl mx-auto bg-white rounded-[32px] shadow-[0_8px_30px_rgba(79,70,229,0.08)] p-6 md:p-12">
+
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
           <div className="flex items-center gap-6">
-            <div className="w-24 h-24 md:w-28 md:h-28 rounded-3xl border-4 border-white overflow-hidden shadow-2xl bg-gradient-to-tr from-violet-500 to-indigo-600 flex-shrink-0">
+            <div className="w-24 h-24 md:w-28 md:h-28 rounded-[28px] border-4 border-white overflow-hidden shadow-2xl bg-indigo-600 flex-shrink-0">
               {imagePreview ? (
                 <img src={imagePreview} className="w-full h-full object-cover" alt="User" />
               ) : (
@@ -70,26 +70,26 @@ const Viewuserall = () => {
               <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
                 {user?.name}
               </h1>
-              <span className="inline-flex items-center px-3 py-1 mt-2 rounded-full bg-indigo-50 text-indigo-600 text-[11px] font-bold uppercase tracking-wider border border-indigo-100">
+              <span className="inline-flex items-center px-3 py-1 mt-2 rounded-full bg-indigo-50 text-indigo-600 text-[11px] font-bold border border-indigo-100">
                 {user?.nationality || 'Member'}
               </span>
             </div>
           </div>
-          <button 
+          <button
             onClick={() => navigate(-1)}
-            className="px-6 py-2 text-sm font-bold text-slate-500 hover:text-indigo-600 bg-white border border-slate-200 rounded-full hover:border-indigo-200 hover:bg-indigo-50 transition-all shadow-sm"
+            className="px-6 py-2 text-sm font-bold text-slate-500 hover:text-indigo-600 bg-white shadow-[0_8px_30px_rgba(79,70,229,0.06)] rounded-full hover:border-indigo-200 hover:bg-indigo-50 transition-all"
           >
             ← Back
           </button>
         </div>
 
         {error ? (
-          <div className="p-4 bg-red-50 border border-red-100 text-red-600 rounded-2xl text-center font-bold">
+          <div className="p-4 bg-red-50 border border-red-100 text-red-600 rounded-[20px] text-center font-bold">
             {error}
           </div>
         ) : (
           <div className="space-y-10">
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <section className="space-y-5">
                 <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
@@ -120,9 +120,7 @@ const Viewuserall = () => {
               </section>
             </div>
 
-
-
-            <section className="p-6 bg-gradient-to-br from-red-50/50 to-white border border-red-100 rounded-3xl">
+            <section className="p-6 bg-gradient-to-br from-red-50/50 to-white border border-red-100 rounded-[28px]">
                 <h3 className="text-sm font-bold text-slate-600 mb-4 flex items-center gap-2">
                   <span className="w-2 h-2 bg-slate-500 rounded-full"></span>
                   Emergency Contact Details
@@ -134,11 +132,9 @@ const Viewuserall = () => {
                 </div>
             </section>
 
-
-
             <section className="pt-6 border-t border-slate-100">
                 <label className={infoLabelStyle}>Permanent Address</label>
-                <div className="text-slate-600 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 text-sm font-medium leading-relaxed">
+                <div className="text-slate-600 bg-slate-50/50 p-4 rounded-[20px] border border-slate-100 text-sm font-medium leading-relaxed">
                   {user?.address || "No address provided."}
                 </div>
             </section>

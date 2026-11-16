@@ -3,6 +3,9 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
+import { Loader2, Upload, CheckCircle2 } from 'lucide-react';
+import AuthShell from '../components/AuthShell';
+import { authInput, authLabel, authButton, authMessage } from '../components/authStyles';
 
 const Doctorregister = () => {
   const [email, setEmail] = useState("");
@@ -18,7 +21,7 @@ const Doctorregister = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!email || !name || !specialization || !contact || !address || !certificate) {
       setMessage("Please fill all fields and upload your certificate.");
       return;
@@ -32,7 +35,7 @@ const Doctorregister = () => {
     formData.append("specialization", specialization);
     formData.append("contact", contact);
     formData.append("address", address);
-    formData.append("certificate", certificate); 
+    formData.append("certificate", certificate);
 
     try {
       const response = await axios.post(
@@ -53,112 +56,63 @@ const Doctorregister = () => {
     }
   };
 
+  const done = message.startsWith("success:");
+  const shownMessage = done ? message.replace("success: ", "") : message;
+
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#fafaf9] bg-[radial-gradient(ellipse_at_top,#f4f6ec,#fafaf9)] font-sans overflow-hidden py-10">
-      <div className="motion-safe:animate-[floatSlow_9s_ease-in-out_infinite] absolute top-[-10%] left-[-5%] w-96 h-96 bg-violet-200/40 blur-[100px] rounded-full" />
-      <div className="motion-safe:animate-[floatSlower_11s_ease-in-out_infinite] absolute bottom-[-10%] right-[-5%] w-96 h-96 bg-indigo-200/40 blur-[100px] rounded-full" />
-
-      <div className="motion-safe:animate-[fadeInUp_0.6s_ease-out_both] relative z-10 w-full max-w-125 p-10 bg-white/80 backdrop-blur-xl rounded-[2.5rem] border border-white shadow-[0_30px_60px_-15px_rgba(147,51,234,0.1)] mx-4">
-
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-black tracking-tighter text-slate-900">
-            Aura<span className="bg-linear-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">Health</span>
-          </h1>
-          <p className="text-slate-400 text-[11px] font-bold uppercase tracking-[0.2em] mt-2">Doctor Registration</p>
+    <AuthShell
+      panelTitle="Spend your day with patients, not paperwork."
+      panelText="Join AuraHealth as a doctor. Our team checks your certificate, then patients can book you."
+      points={["Organised appointment list", "AI briefing before each visit", "Video calls & secure chat"]}
+      title={done ? "Application sent!" : "Join as a doctor"}
+      subtitle={done ? "We'll email your login details once you're approved." : "Tell us about your practice."}
+    >
+      {done ? (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-3 p-5 rounded-[24px] bg-[#E7F7EF] text-[#05603A]">
+            <span className="w-12 h-12 shrink-0 rounded-full bg-white flex items-center justify-center"><CheckCircle2 size={24} /></span>
+            <p className="text-sm font-semibold">{shownMessage}</p>
+          </div>
+          <button onClick={() => navigate('/login')} className={authButton}>Go to sign in</button>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 mb-1">Full Name</label>
-              <input 
-                type="text" 
-                placeholder="Dr. John Doe" 
-                value={name}
-                onChange={(e) => setName(e.target.value)} 
-                required
-                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-400 transition-all shadow-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 mb-1">Email</label>
-              <input 
-                type="email" 
-                placeholder="Email" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)} 
-                required
-                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-400 transition-all shadow-sm"
-              />
-            </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="grid sm:grid-cols-2 gap-3">
+            <label className={authLabel}>Full name
+              <input type="text" placeholder="Dr. Your name" value={name} onChange={(e) => setName(e.target.value)} className={authInput} />
+            </label>
+            <label className={authLabel}>Email
+              <input type="email" placeholder="you@clinic.com" value={email} onChange={(e) => setEmail(e.target.value)} className={authInput} />
+            </label>
           </div>
-
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 mb-1">Specialization</label>
-            <input 
-              type="text" 
-              placeholder="e.g. Cardiology, Neurology" 
-              value={specialization}
-              onChange={(e) => setSpecialization(e.target.value)} 
-              required
-              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-400 transition-all shadow-sm"
-            />
+          <div className="grid sm:grid-cols-2 gap-3">
+            <label className={authLabel}>Specialty
+              <input type="text" placeholder="e.g. Cardiology" value={specialization} onChange={(e) => setSpecialization(e.target.value)} className={authInput} />
+            </label>
+            <label className={authLabel}>Mobile number
+              <PhoneInput defaultCountry="IN" placeholder="98765 43210" value={contact} onChange={setContact} className={`${authInput} flex items-center gap-2 [&_input]:bg-transparent [&_input]:outline-none [&_input]:flex-1 [&_input]:min-w-0`} />
+            </label>
           </div>
-
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 mb-1">Contact Number</label>
-            <PhoneInput
-              placeholder="Enter phone number"
-              value={contact}
-              onChange={setContact}
-              required
-              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 focus-within:ring-4 focus-within:ring-violet-500/10 transition-all shadow-sm"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 mb-1">Clinic/Hospital Address</label>
-            <input 
-              type="text" 
-              placeholder="Complete Address" 
-              value={address}
-              onChange={(e) => setAddress(e.target.value)} 
-              required
-              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-400 transition-all shadow-sm"
-            />
-          </div>
-
-          <div className="bg-slate-50 p-4 rounded-xl border-2 border-dashed border-slate-200">
-            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Medical Docs (PDF Only)</label>
-            <input 
-              type="file" 
-              accept=".pdf" 
-              onChange={(e) => setCertificate(e.target.files[0])} 
-              className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 cursor-pointer"
-              required 
-            />
-          </div>
-
-          <button 
-            type="submit" disabled={loading}
-            className="w-full py-4 mt-4 bg-linear-to-r from-violet-600 to-indigo-600 hover:opacity-95 text-white font-bold rounded-2xl shadow-xl shadow-violet-200 transform transition-all active:scale-[0.98] disabled:opacity-70"
-          >
-            {loading ? "Uploading Documents..." : "Submit Registration Request"}
+          <label className={authLabel}>Clinic address
+            <input type="text" placeholder="Street, city, PIN" value={address} onChange={(e) => setAddress(e.target.value)} className={authInput} />
+          </label>
+          <label className="flex flex-col gap-2 text-sm font-bold">Medical certificate (PDF)
+            <span className={`flex items-center gap-3 p-3 rounded-[22px] border-2 border-dashed cursor-pointer ${certificate ? "border-[#12B76A] bg-[#E7F7EF]" : "border-[#C4C1F5] bg-[#F6F6FD] hover:bg-[#EEEDFF]"}`}>
+              <span className={`w-11 h-11 shrink-0 rounded-full bg-white flex items-center justify-center ${certificate ? "text-[#05603A]" : "text-indigo-600"}`}>{certificate ? <CheckCircle2 size={20} /> : <Upload size={20} />}</span>
+              <span className="min-w-0 text-sm font-semibold text-[#4B4A6B] truncate">{certificate ? certificate.name : "Click to upload your certificate"}</span>
+              <input type="file" accept=".pdf" onChange={(e) => setCertificate(e.target.files[0])} className="sr-only" />
+            </span>
+          </label>
+          {shownMessage && <p className={authMessage(shownMessage)}>{shownMessage}</p>}
+          <button type="submit" disabled={loading} className={authButton}>
+            {loading && <Loader2 size={18} className="animate-spin" />} {loading ? "Sending…" : "Send application"}
           </button>
         </form>
-
-        {message && (
-          <p className={`text-center text-xs mt-4 font-bold ${message.includes('success') ? 'text-green-500' : 'text-red-500'}`}>
-            {message.replace('success: ', '')}
-          </p>
-        )}
-
-        <p className="text-center text-sm text-slate-500 mt-6">
-          Already applied? 
-          <button onClick={() => navigate('/login')} className="text-violet-600 hover:underline ml-1 font-semibold">Back to Login</button>
-        </p>
-      </div>
-    </div>
+      )}
+      <p className="text-center text-sm text-[#6B6A8A]">
+        Already approved? <button onClick={() => navigate('/login')} className="font-extrabold text-indigo-600 hover:text-indigo-700">Sign in</button>
+      </p>
+    </AuthShell>
   );
 };
 

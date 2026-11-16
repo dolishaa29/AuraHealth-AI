@@ -3,126 +3,87 @@ import { useEffect, useState, useMemo } from 'react';
 import DoctorCard from '../components/DoctorCard';
 import { Search, X } from 'lucide-react';
 
+const PILL_COLORS = ["bg-[#FFF0E6] text-[#9A3412]", "bg-[#FFECEB] text-[#B42318]", "bg-[#E7F7EF] text-[#05603A]", "bg-[#E6F1FF] text-[#1E40AF]", "bg-[#EEEDFF] text-[#3730A3]"];
+
 const ViewDoctorss = () => {
-    const [doctors, setDoctors] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
+  const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [specialty, setSpecialty] = useState('All');
 
-    useEffect(() => {
-        const fetchdoctor = async () => {
-            try {
-                setLoading(true);
-                const response = await axios.get(`${import.meta.env.VITE_API_URL}/viewdoctors`);
-                setDoctors(response.data.doctors || []);
-            } catch (error) {
-                console.error("Error fetching doctors:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchdoctor();
-    }, []);
+  useEffect(() => {
+    axios
+      .get(`${import.meta.env.VITE_API_URL}/viewdoctors`)
+      .then((res) => setDoctors(res.data.doctors || []))
+      .catch((err) => console.error("Error fetching doctors:", err))
+      .finally(() => setLoading(false));
+  }, []);
 
-    const filtered = useMemo(() => {
-        return doctors.filter(doc =>
-            doc.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            doc.specialization?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            doc.hospitalName?.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    }, [doctors, searchTerm]);
+  const specialties = useMemo(
+    () => ['All', ...new Set(doctors.map((d) => d.specialization).filter(Boolean))].slice(0, 8),
+    [doctors]
+  );
 
-    return (
-        <div className="h-full overflow-y-auto bg-slate-50 w-full px-4 md:px-10 py-10">
-
-            { }
-            <div className="motion-safe:animate-[fadeInUp_0.4s_ease-out_both] w-full flex flex-col md:flex-row justify-between items-start md:items-end mb-8 pb-6 border-b border-slate-100 gap-4">
-                <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 leading-tight tracking-tight">
-                    Find &amp; Book <br/>
-                    <span className="text-indigo-600">
-                        Specialists
-                    </span>
-                </h2>
-
-                {!loading && (
-                    <div className="px-5 py-3 bg-indigo-50 rounded-2xl text-right shrink-0">
-                        <p className="text-2xl font-bold text-indigo-600">{filtered.length}</p>
-                        <p className="text-[11px] font-bold text-indigo-400 uppercase tracking-widest">
-                            {filtered.length === 1 ? 'Doctor' : 'Doctors'}
-                        </p>
-                    </div>
-                )}
-            </div>
-
-            { }
-            {!loading && doctors.length > 0 && (
-                <div className="motion-safe:animate-[fadeInUp_0.4s_ease-out_both] relative max-w-md mb-8" style={{ animationDelay: '80ms' }}>
-                    <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                    <input
-                        type="text"
-                        placeholder="Search by name, specialty, hospital..."
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        className="w-full pl-11 pr-10 py-3.5 rounded-2xl bg-white border border-slate-100 shadow-sm text-sm text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all"
-                    />
-                    {searchTerm && (
-                        <button
-                            onClick={() => setSearchTerm('')}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors"
-                        >
-                            <X size={15} />
-                        </button>
-                    )}
-                </div>
-            )}
-
-            { }
-            {loading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
-                    {[1, 2, 3, 4, 5, 6].map((n) => (
-                        <div key={n} className="h-96 bg-gray-100 animate-pulse rounded-3xl w-full" />
-                    ))}
-                </div>
-            ) : filtered.length === 0 ? (
-                <div className="w-full flex flex-col items-center justify-center py-40 gap-4">
-                    {searchTerm ? (
-                        <>
-                            <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
-                                <Search size={24} className="text-slate-300" />
-                            </div>
-                            <h3 className="text-xl font-bold text-slate-400">No doctors match your search</h3>
-                            <button
-                                onClick={() => setSearchTerm('')}
-                                className="px-5 py-2.5 rounded-2xl bg-indigo-50 text-indigo-600 text-sm font-bold hover:bg-indigo-100 transition-all"
-                            >
-                                Clear search
-                            </button>
-                        </>
-                    ) : (
-                        <h3 className="text-2xl font-bold text-gray-400">No doctors currently active.</h3>
-                    )}
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
-                    {filtered.map((doc, i) => {
-                        let fullImageUrl = null;
-                        if (doc.image) {
-                            const filename = doc.image.split(/[\\/]/).pop();
-                            fullImageUrl = `${import.meta.env.VITE_API_URL}/images/${filename}`;
-                        }
-                        return (
-                            <div
-                                key={doc._id}
-                                className="motion-safe:animate-[fadeInUp_0.4s_ease-out_both]"
-                                style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}
-                            >
-                                <DoctorCard doctor={doc} image={fullImageUrl} />
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
-        </div>
+  const filtered = useMemo(() => {
+    const q = searchTerm.toLowerCase();
+    return doctors.filter((d) =>
+      (specialty === 'All' || d.specialization === specialty) &&
+      [d.name, d.specialization, d.hospitalName].some((v) => v?.toLowerCase().includes(q))
     );
-}
+  }, [doctors, searchTerm, specialty]);
+
+  return (
+    <div className="h-full overflow-y-auto px-4 py-6 sm:px-6 lg:px-2 lg:py-2">
+      <div className="flex flex-col gap-[22px] pb-24">
+        <div>
+          <h1 className="text-[28px] sm:text-[32px] font-extrabold tracking-[-0.025em]">Find a doctor who gets you</h1>
+          <p className="mt-1.5 text-[15px] text-[#6B6A8A]">Verified specialists, video or in-clinic. Booking takes under a minute.</p>
+        </div>
+
+        <label className="flex items-center gap-3 h-14 px-[22px] rounded-full bg-white text-[#6B6A8A] shadow-[0_8px_30px_rgba(79,70,229,0.06)] focus-within:ring-2 focus-within:ring-indigo-200">
+          <Search size={20} />
+          <span className="sr-only">Search doctors</span>
+          <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search by name, specialty or hospital"
+            className="flex-1 bg-transparent text-[15px] text-[#1E1B4B] placeholder:text-[#9A99B5] focus:outline-none" />
+          {searchTerm && <button onClick={() => setSearchTerm('')} aria-label="Clear search" className="w-8 h-8 rounded-full hover:bg-[#F6F6FD] flex items-center justify-center"><X size={16} /></button>}
+        </label>
+
+        {specialties.length > 1 && (
+          <div role="group" aria-label="Specialty" className="flex flex-wrap gap-2">
+            {specialties.map((s, i) => (
+              <button key={s} onClick={() => setSpecialty(s)} aria-pressed={specialty === s}
+                className={`h-[42px] px-[18px] rounded-full text-sm font-bold transition-all ${specialty === s ? 'bg-indigo-600 text-white' : i === 0 ? 'bg-white text-[#4B4A6B]' : PILL_COLORS[(i - 1) % PILL_COLORS.length]}`}>
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
+            {[1, 2, 3, 4, 5, 6].map((n) => <div key={n} className="h-56 rounded-[28px] bg-white animate-pulse" />)}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="py-16 text-center">
+            <p className="text-lg font-extrabold">{doctors.length ? 'No doctors match your search' : 'No doctors available right now'}</p>
+            {(searchTerm || specialty !== 'All') && (
+              <button onClick={() => { setSearchTerm(''); setSpecialty('All'); }} className="mt-4 h-11 px-5 rounded-full bg-[#EEEDFF] text-[#3730A3] text-sm font-bold">Clear filters</button>
+            )}
+          </div>
+        ) : (
+          <>
+            <p className="text-sm font-semibold text-[#6B6A8A]">{filtered.length} {filtered.length === 1 ? 'doctor' : 'doctors'}</p>
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
+              {filtered.map((doc, i) => {
+                const image = doc.image ? `${import.meta.env.VITE_API_URL}/images/${doc.image.split(/[\\/]/).pop()}` : null;
+                return <DoctorCard key={doc._id} doctor={doc} image={image} index={i} />;
+              })}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export default ViewDoctorss;

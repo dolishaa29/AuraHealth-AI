@@ -40,6 +40,8 @@ const Landing = lazy(() => import('./pages/Landing'));
 const Meeting = lazy(() => import('./pages/Meeting'));
 const NearbyHospitals = lazy(() => import('./pages/NearbyHospitals'));
 const EmergencyContacts = lazy(() => import('./pages/EmergencyContacts'));
+const Reminders = lazy(() => import('./pages/Reminders'));
+const Credits = lazy(() => import('./pages/Credits'));
 
 function App() {
   return (
@@ -67,7 +69,6 @@ function App() {
         <Route path='/doctorprofileview/:id' element={<ProfileDocterForAll/>}/>
         <Route path='/forgotpassword/:role' element={<ForgotPassword/>}/>
         <Route path='/userbyid/:id' element={<Viewuserall/>}/>
-        <Route path='/changepassworduser' element={<Changepassuser/>}/>
         <Route path='/rating/:doctorId' element={<Rating/>}/>
 
         <Route element={<Doctorpri><DoctorLayout /></Doctorpri>}>
@@ -91,6 +92,9 @@ function App() {
           <Route path='/meeting/:appointmentId' element={<Meeting/>}/>
           <Route path='/NearbyHospitals' element={<NearbyHospitals/>}/>
           <Route path='/emergency-contacts' element={<EmergencyContacts/>}/>
+          <Route path='/reminders' element={<Reminders/>}/>
+          <Route path='/credits' element={<Credits/>}/>
+          <Route path='/changepassworduser' element={<Changepassuser/>}/>
         </Route>
 
       </Routes>

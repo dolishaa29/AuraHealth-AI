@@ -2,188 +2,144 @@ import React, { useEffect, useState, useMemo } from "react";
 import axios from "axios";
 import Cookies from "js-cookie";
 import { useNavigate } from "react-router-dom";
-import { Calendar, Clock, User, Mail, Phone, ExternalLink, CalendarCheck } from "lucide-react";
+import { Video, MessageCircle, Sparkles, Loader2, CalendarCheck, Mail } from "lucide-react";
+import { formatTime } from "../utils/time";
 
-const groupByDate = (appointments) => {
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const startOfTomorrow = new Date(startOfToday);
-  startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+const API = import.meta.env.VITE_API_URL;
+const authConfig = () => ({ headers: { Authorization: `Bearer ${Cookies.get("emstoken")}` }, withCredentials: true });
+const CARD = "bg-white rounded-[28px] shadow-[0_8px_30px_rgba(79,70,229,0.06)]";
+const AVATARS = ["bg-[#FFF0E6] text-[#9A3412]", "bg-[#E6F1FF] text-[#1E40AF]", "bg-[#E7F7EF] text-[#05603A]", "bg-[#EEEDFF] text-[#3730A3]", "bg-[#FFECEB] text-[#B42318]"];
 
-  const today = [];
-  const upcoming = [];
-  const past = [];
-
-  [...appointments]
-    .sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`))
-    .forEach((app) => {
-      const dt = new Date(`${app.date}T${app.time}`);
-      if (dt >= startOfToday && dt < startOfTomorrow) today.push(app);
-      else if (dt >= startOfTomorrow) upcoming.push(app);
-      else past.push(app);
-    });
-
-  return { today, upcoming, past: past.reverse() };
+const when = (a) => new Date(`${a.date}T${a.time}`);
+const initials = (name = "") => name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "P";
+const dateBits = (a) => {
+  const d = new Date(a.date);
+  return { month: d.toLocaleDateString("en-IN", { month: "short" }).toUpperCase(), day: String(d.getDate()).padStart(2, "0"), weekday: d.toLocaleDateString("en-IN", { weekday: "long" }) };
 };
 
 const Doctorviewapp = () => {
-  const [appointments, setappointments] = useState([]);
+  const navigate = useNavigate();
+  const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState("upcoming");
+  const [now] = useState(() => Date.now());
+  const [briefing, setBriefing] = useState({ forId: null, loading: false, text: "" });
 
-  useEffect(() => { fetchAppointments(); }, []);
+  useEffect(() => {
+    axios.get(`${API}/doctorviewapp`, authConfig())
+      .then((res) => setAppointments(res.data.appointments || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
-  const fetchAppointments = async () => {
+  const { upcoming, past } = useMemo(() => {
+    const cutoff = now - 60 * 60 * 1000;
+    const sorted = [...appointments].sort((a, b) => when(a) - when(b));
+    return { upcoming: sorted.filter((a) => when(a).getTime() >= cutoff), past: sorted.filter((a) => when(a).getTime() < cutoff).reverse() };
+  }, [appointments, now]);
+
+  const canStart = (a) => now >= when(a).getTime() - 10 * 60 * 1000;
+  const next = upcoming[0];
+  const list = tab === "upcoming" ? upcoming.slice(1) : past;
+
+  const toggleBriefing = async (a) => {
+    if (briefing.forId === a._id) { setBriefing({ forId: null, loading: false, text: "" }); return; }
+    setBriefing({ forId: a._id, loading: true, text: "" });
     try {
-      const response = await axios.get(import.meta.env.VITE_API_URL + "/doctorviewapp", {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${Cookies.get("emstoken")}`,
-        },
-        withCredentials: true,
-      });
-      setappointments(response.data.appointments || []);
-    } catch (error) {
-      console.error("Error fetching appointments:", error);
-    } finally {
-      setLoading(false);
+      const res = await axios.get(`${API}/appointment/${a._id}/briefing`, authConfig());
+      setBriefing({ forId: a._id, loading: false, text: res.data.text });
+    } catch {
+      setBriefing({ forId: a._id, loading: false, text: "Couldn't prepare a briefing right now." });
     }
   };
 
-  const isTimeReached = (date, time) => {
-    const now = new Date();
-    return now >= new Date(`${date}T${time}`);
-  };
-
-  const groups = useMemo(() => groupByDate(appointments), [appointments]);
-
-  return (
-    <div className="h-full overflow-y-auto bg-slate-50 px-6 py-10 md:px-10">
-      <div className="motion-safe:animate-[fadeInUp_0.4s_ease-out_both] mb-10">
-        <p className="text-[10px] font-bold text-indigo-500 tracking-[0.2em] uppercase mb-1">Doctor Portal</p>
-        <h1 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight">
-          My <span className="text-indigo-600">Appointments</span>
-        </h1>
-      </div>
-
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-40">
-          <div className="w-10 h-10 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
-          <p className="mt-4 text-slate-400 text-sm font-medium">Loading appointments...</p>
-        </div>
-      ) : appointments.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-32 bg-white border border-slate-100 rounded-3xl">
-          <CalendarCheck size={48} className="text-slate-200 mb-4" strokeWidth={1.5} />
-          <h3 className="text-lg font-bold text-slate-700">No Appointments Yet</h3>
-          <p className="text-slate-400 text-sm mt-1">Patient appointments will appear here.</p>
-        </div>
-      ) : (
-        <div className="space-y-10">
-          {groups.today.length > 0 && (
-            <AppointmentSection title="Today" badgeClass="bg-emerald-50 text-emerald-600" appointments={groups.today} isTimeReached={isTimeReached} />
-          )}
-          {groups.upcoming.length > 0 && (
-            <AppointmentSection title="Upcoming" badgeClass="bg-indigo-50 text-indigo-600" appointments={groups.upcoming} isTimeReached={isTimeReached} />
-          )}
-          {groups.past.length > 0 && (
-            <AppointmentSection title="Past" badgeClass="bg-slate-100 text-slate-500" appointments={groups.past} isTimeReached={isTimeReached} />
-          )}
-        </div>
-      )}
+  const briefingBox = (a) => briefing.forId === a._id && (
+    <div className="w-full mt-1 p-4 rounded-[20px] bg-[#FFF0E6] text-[#7C2D12] text-sm leading-relaxed whitespace-pre-wrap">
+      {briefing.loading ? <span className="flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Reading past reports and visits…</span> : briefing.text}
     </div>
   );
-};
-
-const AppointmentSection = ({ title, badgeClass, appointments, isTimeReached }) => (
-  <div>
-    <div className="flex items-center gap-2.5 mb-4">
-      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em]">{title}</p>
-      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badgeClass}`}>{appointments.length}</span>
-    </div>
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-      {appointments.map((app, i) => (
-        <AppointmentCard key={app._id} app={app} active={isTimeReached(app.date, app.time)} index={i} />
-      ))}
-    </div>
-  </div>
-);
-
-const AppointmentCard = ({ app, active, index = 0 }) => {
-  const navigate = useNavigate();
 
   return (
-  <div
-    style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
-    className="motion-safe:animate-[fadeInUp_0.45s_ease-out_both] bg-white border border-slate-100 rounded-3xl p-6 shadow-sm hover:shadow-lg hover:shadow-indigo-50/50 transition-all duration-300 flex flex-col"
-  >
-    <div className="flex items-center justify-between mb-5">
-      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Appointment</span>
-      <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
-        active ? "bg-green-50 text-green-600" : "bg-slate-100 text-slate-500"
-      }`}>
-        <span className={`w-1.5 h-1.5 rounded-full ${active ? "bg-green-500 animate-pulse" : "bg-slate-400"}`} />
-        {active ? "Ready" : "Upcoming"}
-      </span>
-    </div>
-
-    <div className="mb-5">
-      <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest mb-1">Patient</p>
-      <h3 className="font-bold text-slate-800 text-base leading-tight">{app.name}</h3>
-    </div>
-
-    <div className="space-y-2.5 flex-1">
-      <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl">
-        <div className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg"><Calendar size={15} /></div>
+    <div className="h-full overflow-y-auto px-4 py-6 sm:px-6 lg:px-2 lg:py-2">
+      <div className="flex flex-col gap-[22px] pb-16">
         <div>
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-0.5">Date</p>
-          <p className="text-sm font-bold text-slate-700">
-            {new Date(app.date).toLocaleDateString(undefined, { dateStyle: "long" })}
-          </p>
+          <h1 className="text-[28px] sm:text-[32px] font-extrabold tracking-[-0.025em]">Your appointments</h1>
+          <p className="mt-1.5 text-[15px] text-[#6B6A8A]">Every patient visit, with an AI briefing one tap away.</p>
         </div>
-      </div>
 
-      <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl">
-        <div className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg"><Clock size={15} /></div>
-        <div>
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-0.5">Time</p>
-          <p className="text-sm font-bold text-slate-700">{app.time}</p>
+        <div role="tablist" aria-label="Appointments" className="self-start inline-flex gap-1 p-1.5 rounded-full bg-white shadow-[0_8px_30px_rgba(79,70,229,0.06)]">
+          {[["upcoming", `Upcoming · ${upcoming.length}`], ["past", `Past · ${past.length}`]].map(([id, label]) => (
+            <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
+              className={`h-10 px-5 rounded-full text-sm font-bold ${tab === id ? "bg-indigo-600 text-white" : "text-[#4B4A6B] hover:text-indigo-600"}`}>{label}</button>
+          ))}
         </div>
-      </div>
 
-      <div className="space-y-1.5 p-3 bg-slate-50 rounded-2xl">
-        {app.email && (
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <Mail size={12} className="text-slate-400 shrink-0" />
-            <span className="truncate">{app.email}</span>
-          </div>
+        {loading ? (
+          <div className="flex items-center gap-2 text-[#6B6A8A] text-sm"><Loader2 size={16} className="animate-spin" /> Loading…</div>
+        ) : appointments.length === 0 ? (
+          <section className={`${CARD} p-10 text-center`}>
+            <span className="mx-auto mb-4 w-16 h-16 rounded-full bg-[#EEEDFF] text-indigo-600 flex items-center justify-center"><CalendarCheck size={28} /></span>
+            <h2 className="text-xl font-extrabold">No appointments yet</h2>
+            <p className="mt-1.5 text-sm text-[#6B6A8A]">When patients book you, they'll show up here.</p>
+          </section>
+        ) : (
+          <>
+            {tab === "upcoming" && next && (
+              <section className="relative overflow-hidden rounded-[32px] bg-[#E9E8FF] p-7 flex flex-wrap gap-6 items-center">
+                <div aria-hidden="true" className="absolute -left-14 -bottom-24 w-60 h-60 rounded-full bg-[#DAD8FF]" />
+                <div className="relative w-[104px] h-28 rounded-[28px] bg-white flex flex-col items-center justify-center shadow-[0_12px_30px_rgba(79,70,229,0.15)]">
+                  <span className="text-[13px] font-bold text-indigo-600">{dateBits(next).month}</span>
+                  <span className="text-[40px] font-extrabold leading-none">{dateBits(next).day}</span>
+                  <span className="text-[13px] font-semibold text-[#6B6A8A]">{dateBits(next).weekday}</span>
+                </div>
+                <div className="relative flex-[1_1_280px] min-w-0">
+                  <span className="inline-flex px-3 py-1 rounded-full bg-white text-indigo-600 text-xs font-extrabold">Next · {formatTime(next.time)}</span>
+                  <h2 className="mt-3 mb-1 text-2xl font-extrabold tracking-tight truncate">{next.name || next.email}</h2>
+                  <p className="text-[15px] text-[#4B4A6B]">{next.description ? `"${next.description}"` : "No reason given."}</p>
+                  {next.email && <p className="mt-1 text-[13px] text-[#6B6A8A] flex items-center gap-1.5"><Mail size={13} /> {next.email}</p>}
+                </div>
+                <div className="relative flex flex-wrap gap-2.5">
+                  <button onClick={() => navigate(`/meeting/${next._id}`)} disabled={!canStart(next)}
+                    className="h-12 px-[22px] rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-[15px] font-bold flex items-center gap-2 disabled:opacity-50">
+                    <Video size={18} /> {canStart(next) ? "Start call" : "Opens 10 min before"}
+                  </button>
+                  <button onClick={() => toggleBriefing(next)} className="h-12 px-5 rounded-full bg-white text-[#312E81] text-[15px] font-bold flex items-center gap-2"><Sparkles size={17} /> Briefing</button>
+                  <button onClick={() => navigate("/doctorchat")} className="h-12 px-5 rounded-full bg-white text-[#312E81] text-[15px] font-bold flex items-center gap-2"><MessageCircle size={17} /> Message</button>
+                </div>
+                <div className="relative w-full">{briefingBox(next)}</div>
+              </section>
+            )}
+
+            {list.length > 0 && (
+              <section className={`${CARD} p-6 flex flex-col gap-3`}>
+                <h2 className="mb-1 text-xl font-extrabold">{tab === "upcoming" ? "Later on" : "Past visits"}</h2>
+                {list.map((a, i) => {
+                  const d = dateBits(a);
+                  return (
+                    <div key={a._id} className="flex flex-wrap items-center gap-3.5 p-4 rounded-[22px] bg-[#F6F6FD]">
+                      <div className="w-[52px] h-[52px] rounded-[18px] bg-white flex flex-col items-center justify-center">
+                        <span className="text-[11px] font-bold text-indigo-600">{d.month}</span>
+                        <span className="text-lg font-extrabold leading-none">{d.day}</span>
+                      </div>
+                      <span className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-sm font-extrabold ${AVATARS[i % AVATARS.length]}`}>{initials(a.name)}</span>
+                      <div className="flex-[1_1_200px] min-w-0">
+                        <p className="text-[15px] font-extrabold truncate">{a.name || a.email}</p>
+                        <p className="text-[13px] text-[#6B6A8A] truncate">{formatTime(a.time)}{a.description ? ` · ${a.description}` : ""}</p>
+                      </div>
+                      <button onClick={() => toggleBriefing(a)} className="h-10 px-4 rounded-full bg-white text-[#3730A3] text-sm font-bold flex items-center gap-1.5">
+                        <Sparkles size={14} /> {briefing.forId === a._id ? "Hide" : "Briefing"}
+                      </button>
+                      {briefingBox(a)}
+                    </div>
+                  );
+                })}
+              </section>
+            )}
+            {tab === "past" && past.length === 0 && <p className="text-sm text-[#6B6A8A]">No past visits yet.</p>}
+          </>
         )}
-        {app.contact && (
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <Phone size={12} className="text-slate-400 shrink-0" />
-            <span>{app.contact}</span>
-          </div>
-        )}
       </div>
-
-      {app.description && (
-        <div className="p-3 bg-slate-50 rounded-2xl">
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Reason for Visit</p>
-          <p className="text-xs text-slate-600 italic line-clamp-2">"{app.description}"</p>
-        </div>
-      )}
     </div>
-
-    <button
-      disabled={!active}
-      onClick={() => active && navigate(`/meeting/${app._id}`)}
-      className={`mt-5 w-full py-3.5 rounded-2xl font-bold text-sm transition-all duration-300 flex items-center justify-center gap-2
-        ${active
-          ? "bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 active:scale-[0.98]"
-          : "bg-slate-100 text-slate-400 cursor-not-allowed"
-        }`}
-    >
-      {active ? (<>Start Appointment <ExternalLink size={15} /></>) : "Waiting for Time"}
-    </button>
-  </div>
   );
 };
 

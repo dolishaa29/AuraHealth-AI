@@ -12,7 +12,7 @@ import Footer from '../components/landing/Footer';
 import Bot from '../components/bot';
 
 const Landing = () => (
-  <div className="w-full bg-slate-50 font-sans text-slate-900">
+  <div className="w-full bg-[#F6F6FD] font-sans text-slate-900">
     <Navbar />
     <Hero />
     <HowItWorks />

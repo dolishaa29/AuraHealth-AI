@@ -1,127 +1,94 @@
 import React from "react";
-import { ChevronLeft, CalendarDays, Clock, Loader2, AlertCircle, CheckCircle2, Building2 } from "lucide-react";
+import { ChevronLeft, Loader2, AlertCircle } from "lucide-react";
 import { formatTime } from "./utils";
 
+const nextDays = () => {
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    days.push({ value, weekday: d.toLocaleDateString("en-IN", { weekday: "short" }), day: d.getDate() });
+  }
+  return days;
+};
+
 const DateSlotStep = ({
-  selectedDoctor,
-  getImageUrl,
-  today,
-  selectedDate,
-  onDateChange,
-  loadingSlots,
-  hasAppointmentToday,
-  slots,
-  selectedSlot,
-  onSelectSlot,
-  onBack,
-  onContinue,
-}) => (
-  <div className="max-w-2xl">
-    <button
-      onClick={onBack}
-      className="flex items-center gap-1.5 text-slate-400 text-xs font-bold uppercase tracking-widest hover:text-indigo-600 transition-colors mb-6"
-    >
-      <ChevronLeft size={14} strokeWidth={2.5} /> Back to Doctors
-    </button>
+  selectedDoctor, getImageUrl, today, selectedDate, onDateChange, loadingSlots, hasAppointmentToday,
+  slots, selectedSlot, onSelectSlot, onBack, onContinue,
+}) => {
+  const img = getImageUrl(selectedDoctor?.image);
+  const pickDate = (value) => onDateChange({ target: { value } });
 
-    <div className="motion-safe:animate-[fadeInUp_0.35s_ease-out_both] bg-white border border-slate-100 rounded-3xl p-5 mb-5 shadow-sm flex items-center gap-4">
-      <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0 text-xl font-bold text-indigo-300 overflow-hidden">
-        {getImageUrl(selectedDoctor?.image)
-          ? <img src={getImageUrl(selectedDoctor.image)} className="w-full h-full object-cover" alt={selectedDoctor.name} />
-          : selectedDoctor?.name?.[0]}
-      </div>
-      <div>
-        <p className="font-bold text-slate-900 text-sm">Dr. {selectedDoctor?.name}</p>
-        <p className="text-xs text-indigo-500 font-semibold">{selectedDoctor?.specialization}</p>
-        {selectedDoctor?.hospitalName && (
-          <div className="flex items-center gap-1 mt-0.5 text-slate-400">
-            <Building2 size={10} /><span className="text-[11px]">{selectedDoctor.hospitalName}</span>
+  return (
+    <div className="flex flex-wrap gap-5 items-start">
+      <section className="flex-[999_1_480px] min-w-0 bg-white rounded-[28px] p-6 shadow-[0_8px_30px_rgba(79,70,229,0.06)] flex flex-col gap-5">
+        <button onClick={onBack} className="self-start h-10 pl-2 pr-4 rounded-full bg-[#F6F6FD] text-[#4B4A6B] text-sm font-bold flex items-center gap-1 hover:text-indigo-600">
+          <ChevronLeft size={16} /> Change doctor
+        </button>
+
+        <div>
+          <h2 className="mb-3 text-lg font-extrabold">Pick a day</h2>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(72px,1fr))] gap-2">
+            {nextDays().map((d) => (
+              <button key={d.value} onClick={() => pickDate(d.value)} aria-pressed={selectedDate === d.value}
+                className={`h-[72px] rounded-[22px] flex flex-col items-center justify-center transition-colors ${selectedDate === d.value ? "bg-indigo-600 text-white" : "bg-[#F6F6FD] hover:bg-[#EEEDFF]"}`}>
+                <span className={`text-xs font-semibold ${selectedDate === d.value ? "text-indigo-100" : "text-[#6B6A8A]"}`}>{d.weekday}</span>
+                <span className="text-xl font-extrabold">{d.day}</span>
+              </button>
+            ))}
           </div>
-        )}
-      </div>
-    </div>
-
-    <div className="motion-safe:animate-[fadeInUp_0.35s_ease-out_both] bg-white border border-slate-100 rounded-3xl p-5 mb-5 shadow-sm" style={{ animationDelay: '60ms' }}>
-      <div className="flex items-center gap-2 mb-3">
-        <CalendarDays size={16} className="text-indigo-500" />
-        <label className="text-xs font-bold text-slate-700 uppercase tracking-widest">Select Date</label>
-      </div>
-      <input
-        type="date"
-        min={today}
-        value={selectedDate}
-        onChange={onDateChange}
-        className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 transition-all"
-      />
-    </div>
-
-    {selectedDate && (
-      <div className="motion-safe:animate-[fadeInUp_0.35s_ease-out_both] bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
-        <div className="flex items-center gap-2 mb-4">
-          <Clock size={16} className="text-indigo-500" />
-          <span className="text-xs font-bold text-slate-700 uppercase tracking-widest">Available Slots</span>
-          <span className="ml-auto text-[10px] text-slate-400 font-semibold">9:00 AM – 5:00 PM · 30 min</span>
+          <label className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-[#6B6A8A]">
+            Another date
+            <input type="date" min={today} value={selectedDate} onChange={onDateChange} className="h-10 px-3 rounded-full bg-[#F6F6FD] text-sm font-bold text-[#1E1B4B] focus:outline-none focus:ring-2 focus:ring-indigo-200" />
+          </label>
         </div>
 
-        {loadingSlots ? (
-          <div className="flex items-center justify-center py-12 gap-2 text-slate-400">
-            <Loader2 size={18} className="animate-spin" />
-            <span className="text-sm font-semibold">Loading slots...</span>
-          </div>
-        ) : hasAppointmentToday ? (
-          <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-100 rounded-2xl">
-            <AlertCircle size={18} className="text-amber-500 shrink-0" />
-            <div>
-              <p className="text-sm font-bold text-amber-700">Already Booked</p>
-              <p className="text-xs text-amber-600 mt-0.5">You already have an appointment on this date.</p>
-            </div>
-          </div>
-        ) : slots.length === 0 ? (
-          <p className="text-center text-slate-400 text-sm py-8">No slots available for this date.</p>
-        ) : (
-          <>
-            <div className="flex items-center gap-4 mb-4 text-[11px] font-semibold text-slate-400">
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block" />Available</span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-slate-200 inline-block" />Booked</span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" />Selected</span>
-            </div>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-              {slots.map((slot) => (
-                <button
-                  key={slot.time}
-                  disabled={!slot.available}
-                  onClick={() => onSelectSlot(slot.time)}
-                  className={`py-2.5 rounded-xl text-xs font-bold transition-all
-                    ${!slot.available
-                      ? "bg-slate-100 text-slate-300 cursor-not-allowed"
-                      : selectedSlot === slot.time
-                      ? "bg-green-500 text-white shadow-md scale-105"
-                      : "bg-indigo-50 text-indigo-600 hover:bg-indigo-500 hover:text-white hover:scale-105"}`}
-                >
-                  {formatTime(slot.time)}
+        <div>
+          <h2 className="mb-3 text-lg font-extrabold">Pick a time</h2>
+          {!selectedDate ? (
+            <p className="py-6 text-center text-sm text-[#6B6A8A]">Choose a day to see free times.</p>
+          ) : loadingSlots ? (
+            <p className="py-6 flex items-center justify-center gap-2 text-sm text-[#6B6A8A]"><Loader2 size={16} className="animate-spin" /> Finding free times…</p>
+          ) : hasAppointmentToday ? (
+            <p className="px-4 py-3 rounded-[18px] bg-[#FFF4E5] text-[#B45309] text-sm font-semibold flex items-center gap-2"><AlertCircle size={16} /> You already have a visit on this day. Only one per day is allowed.</p>
+          ) : slots.length === 0 ? (
+            <p className="py-6 text-center text-sm text-[#6B6A8A]">No free times on this day.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {slots.map((s) => (
+                <button key={s.time} disabled={!s.available} onClick={() => onSelectSlot(s.time)} aria-pressed={selectedSlot === s.time}
+                  className={`h-11 px-[18px] rounded-full text-sm font-bold transition-colors ${!s.available ? "bg-[#EFEFF8] text-[#9A99B5] line-through cursor-not-allowed" : selectedSlot === s.time ? "bg-indigo-600 text-white" : "bg-[#F6F6FD] text-[#1E1B4B] hover:bg-[#EEEDFF]"}`}>
+                  {formatTime(s.time)}
                 </button>
               ))}
             </div>
+          )}
+        </div>
+      </section>
 
-            {selectedSlot && (
-              <div className="motion-safe:animate-[fadeInUp_0.3s_ease-out_both] mt-5 pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                  <CheckCircle2 size={16} className="text-green-500" />
-                  {formatTime(selectedSlot)}
-                </div>
-                <button
-                  onClick={onContinue}
-                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors"
-                >
-                  Continue →
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    )}
-  </div>
-);
+      <section className="flex-[1_1_300px] min-w-0 relative overflow-hidden rounded-[32px] bg-[#E9E8FF] p-6 flex flex-col gap-4">
+        <div aria-hidden="true" className="absolute -right-16 -top-16 w-48 h-48 rounded-full bg-[#DAD8FF]" />
+        <div className="relative flex items-center gap-3.5">
+          {img ? <img src={img} alt="" className="w-14 h-14 rounded-full object-cover" />
+            : <span className="w-14 h-14 rounded-full bg-white text-indigo-600 flex items-center justify-center text-lg font-extrabold">{selectedDoctor?.name?.[0] || "D"}</span>}
+          <div className="min-w-0">
+            <p className="text-[13px] font-bold text-indigo-600">Booking with</p>
+            <p className="text-lg font-extrabold truncate">Dr. {selectedDoctor?.name}</p>
+            <p className="text-[13px] text-[#4B4A6B] truncate">{selectedDoctor?.specialization}</p>
+          </div>
+        </div>
+        <div className="relative px-4 py-3.5 rounded-[20px] bg-white text-sm flex justify-between">
+          <span className="text-[#4B4A6B]">{selectedDate ? new Date(selectedDate).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" }) : "No day yet"}{selectedSlot ? ` · ${formatTime(selectedSlot)}` : ""}</span>
+          <strong>20 credits</strong>
+        </div>
+        <button onClick={onContinue} disabled={!selectedSlot}
+          className="relative h-[52px] rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-base font-extrabold disabled:opacity-50 shadow-[0_10px_20px_-6px_rgba(79,70,229,0.5)]">
+          Continue
+        </button>
+      </section>
+    </div>
+  );
+};
 
 export default DateSlotStep;

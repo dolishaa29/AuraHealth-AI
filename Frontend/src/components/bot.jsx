@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
 import { X, Send, Stethoscope, Sparkles } from "lucide-react";
+import Cookies from "js-cookie";
 
 const FALLBACK_MESSAGE = "Sorry, I couldn't process that. Please try again.";
 
-const Bot = () => {
+const Bot = ({ raised = false }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [messages, setMessages] = useState([]);
@@ -50,14 +51,24 @@ const Bot = () => {
     abortControllerRef.current = controller;
 
     try {
+
+      const token = Cookies.get("token");
       const res = await fetch(`${import.meta.env.VITE_API_URL}/chat/stream`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        credentials: "include",
         body: JSON.stringify({ prompt: text }),
         signal: controller.signal,
       });
 
+      if (res.status === 402 || res.status === 429) {
+        const data = await res.json().catch(() => ({}));
+        updateLastMessage(() => ({ text: data.message || FALLBACK_MESSAGE, sender: "bot", streaming: false }));
+        return;
+      }
+
       if (!res.ok || !res.body) throw new Error(`Request failed with status ${res.status}`);
+      if (token) window.dispatchEvent(new Event("credits-changed"));
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder("utf-8");
@@ -120,15 +131,15 @@ const Bot = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <div className={`fixed right-6 z-50 flex flex-col items-end ${raised ? "bottom-[104px]" : "bottom-6"}`}>
 
-      <div className={`mb-4 w-90 bg-white rounded-3xl shadow-2xl shadow-indigo-100 border border-slate-100 flex flex-col overflow-hidden transition-all duration-300 origin-bottom-right
+      <div className={`mb-4 w-90 bg-white rounded-[28px] shadow-2xl shadow-indigo-100 border border-slate-100 flex flex-col overflow-hidden transition-all duration-300 origin-bottom-right
         ${isOpen ? "opacity-100 scale-100 pointer-events-auto" : "opacity-0 scale-95 pointer-events-none"}`}
         style={{ maxHeight: "520px" }}
       >
-        <div className="bg-linear-to-r from-indigo-600 to-violet-600 px-5 py-4 flex items-center justify-between shrink-0">
+        <div className="bg-linear-to-r from-indigo-600 to-indigo-600 px-5 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-white/20 rounded-2xl flex items-center justify-center">
+            <div className="w-9 h-9 bg-white/20 rounded-[20px] flex items-center justify-center">
               <Stethoscope size={18} className="text-white" />
             </div>
             <div>
@@ -147,11 +158,10 @@ const Bot = () => {
           </button>
         </div>
 
-        { }
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3" style={{ minHeight: "280px", maxHeight: "340px" }}>
           {messages.length === 0 && !loading && (
             <div className="flex flex-col items-center justify-center h-full py-8 text-center">
-              <div className="w-14 h-14 bg-linear-to-br from-indigo-50 to-violet-100 rounded-2xl flex items-center justify-center mb-3">
+              <div className="w-14 h-14 bg-linear-to-br from-indigo-600 to-indigo-600 rounded-[20px] flex items-center justify-center mb-3">
                 <Sparkles size={22} className="text-indigo-400" />
               </div>
               <p className="text-slate-700 font-bold text-sm">How can I help you?</p>
@@ -175,14 +185,14 @@ const Bot = () => {
           {messages.map((msg, i) => (
             <div key={i} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
               {msg.sender === "bot" && (
-                <div className="w-6 h-6 bg-linear-to-br from-indigo-500 to-violet-500 rounded-xl flex items-center justify-center shrink-0 mr-2 mt-1 shadow-sm">
+                <div className="w-6 h-6 bg-linear-to-br from-indigo-600 to-indigo-600 rounded-xl flex items-center justify-center shrink-0 mr-2 mt-1 shadow-sm">
                   <Stethoscope size={11} className="text-white" />
                 </div>
               )}
               <div
-                className={`max-w-[78%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed
+                className={`max-w-[78%] px-4 py-2.5 rounded-[20px] text-sm leading-relaxed
                   ${msg.sender === "user"
-                    ? "bg-linear-to-br from-indigo-600 to-violet-600 text-white rounded-br-md shadow-md shadow-indigo-100"
+                    ? "bg-linear-to-br from-indigo-600 to-indigo-600 text-white rounded-br-md shadow-md shadow-indigo-100"
                     : "bg-slate-100 text-slate-700 rounded-bl-md"
                   }`}
               >
@@ -202,9 +212,8 @@ const Bot = () => {
           <div ref={bottomRef} />
         </div>
 
-        { }
         <div className="px-4 pb-4 pt-2 border-t border-slate-50 shrink-0">
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2 focus-within:ring-2 focus-within:ring-indigo-100 focus-within:border-indigo-300 transition-all">
+          <div className="flex items-center gap-2 bg-[#F6F6FD] border-2 border-transparent rounded-[18px] focus:bg-white px-4 py-2 focus-within:ring-2 focus-within:ring-indigo-100 focus-within:border-indigo-300 transition-all">
             <input
               ref={inputRef}
               value={prompt}
@@ -216,19 +225,18 @@ const Bot = () => {
             <button
               onClick={sendMessage}
               disabled={!prompt.trim() || loading}
-              className="w-8 h-8 bg-linear-to-br from-indigo-600 to-violet-600 hover:opacity-90 disabled:opacity-30 text-white rounded-xl flex items-center justify-center transition-all active:scale-95 shrink-0"
+              className="w-8 h-8 bg-linear-to-br from-indigo-600 to-indigo-600 hover:opacity-90 disabled:opacity-30 text-white rounded-xl flex items-center justify-center transition-all active:scale-95 shrink-0"
             >
               <Send size={13} />
             </button>
           </div>
-          <p className="text-[10px] text-slate-300 text-center mt-2">For informational purposes only · Not medical advice</p>
+          <p className="text-[10px] text-slate-300 text-center mt-2">For informational purposes only · Not medical advice · {Cookies.get("token") ? "1 credit per message" : "5 free messages a day"}</p>
         </div>
       </div>
 
-      { }
       <button
         onClick={() => setIsOpen((prev) => !prev)}
-        className={`w-14 h-14 bg-linear-to-br from-indigo-600 to-violet-600 hover:opacity-90 text-white rounded-2xl shadow-xl shadow-indigo-200 flex items-center justify-center transition-all duration-300 active:scale-95
+        className={`w-14 h-14 bg-linear-to-br from-indigo-600 to-indigo-600 hover:opacity-90 text-white rounded-[20px] shadow-xl shadow-indigo-200 flex items-center justify-center transition-all duration-300 active:scale-95
           ${isOpen ? "rotate-0" : "hover:scale-105"}`}
         title="AuraHealth Bot"
       >

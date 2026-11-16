@@ -50,17 +50,17 @@ const DoctorChat = () => {
   );
 
   return (
-    <div className="flex h-full overflow-hidden bg-white">
-      { }
+    <div className="flex h-full overflow-hidden gap-5 lg:p-0 p-3">
+
       <aside
-        className={`w-full md:w-72 shrink-0 flex-col border-r border-slate-100 bg-white ${
+        className={`w-full md:w-80 shrink-0 flex-col bg-white rounded-[28px] shadow-[0_8px_30px_rgba(79,70,229,0.06)] overflow-hidden ${
           active ? "hidden md:flex" : "flex"
         }`}
       >
         <div className="px-4 pt-5 pb-3 border-b border-slate-100">
-          <p className="text-[10px] font-bold text-indigo-500 tracking-[0.2em] uppercase mb-0.5">Inbox</p>
-          <h1 className="text-lg font-bold text-slate-900 tracking-tight mb-3">Messages</h1>
-          <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">
+          <p className="text-[13px] font-bold text-indigo-600 mb-0.5">Inbox</p>
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight mb-3">Messages</h1>
+          <div className="flex items-center gap-2 bg-slate-50 rounded-[16px] px-3 py-2 border border-slate-100">
             <Search size={13} className="text-slate-400 shrink-0" />
             <input
               value={search}
@@ -78,7 +78,7 @@ const DoctorChat = () => {
             </div>
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-4 py-12">
-              <div className="w-11 h-11 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
+              <div className="w-11 h-11 rounded-[20px] bg-slate-100 flex items-center justify-center mb-3">
                 <MessageCircle size={18} className="text-slate-300" strokeWidth={1.5} />
               </div>
               <p className="text-slate-500 font-semibold text-sm">
@@ -97,11 +97,11 @@ const DoctorChat = () => {
                   key={c.userId}
                   onClick={() => setActive(c)}
                   style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
-                  className={`motion-safe:animate-[fadeInUp_0.35s_ease-out_both] w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all mb-0.5 ${
+                  className={`motion-safe:animate-[fadeInUp_0.35s_ease-out_both] w-full flex items-center gap-3 px-3 py-2.5 rounded-[16px] text-left transition-all mb-0.5 ${
                     isActive ? "bg-indigo-600 shadow-sm shadow-indigo-200" : "hover:bg-slate-50"
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center bg-linear-to-br ${color}`}>
+                  <div className={`w-9 h-9 rounded-[16px] shrink-0 flex items-center justify-center bg-linear-to-br ${color}`}>
                     <span className="text-white text-xs font-bold">{getInitials(c.name)}</span>
                   </div>
                   <div className="min-w-0">
@@ -120,8 +120,7 @@ const DoctorChat = () => {
         </div>
       </aside>
 
-      { }
-      <main className={`flex-1 min-w-0 overflow-hidden ${active ? "flex" : "hidden md:flex"} flex-col`}>
+      <main className={`flex-1 min-w-0 overflow-hidden ${active ? "flex" : "hidden md:flex"} flex-col bg-white rounded-[28px] shadow-[0_8px_30px_rgba(79,70,229,0.06)]`}>
         {active ? (
           <ChatWindow
             role="doctor"
@@ -135,8 +134,8 @@ const DoctorChat = () => {
             onBack={() => setActive(null)}
           />
         ) : (
-          <div className="h-full flex flex-col items-center justify-center bg-slate-50">
-            <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center mb-4">
+          <div className="h-full flex flex-col items-center justify-center">
+            <div className="w-14 h-14 rounded-[20px] bg-white shadow-[0_8px_30px_rgba(79,70,229,0.06)] flex items-center justify-center mb-4">
               <MessageCircle size={24} className="text-slate-300" strokeWidth={1.5} />
             </div>
             <p className="text-slate-600 font-semibold">Select a conversation</p>

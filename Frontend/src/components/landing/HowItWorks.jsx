@@ -3,57 +3,34 @@ import { UserPlus, CalendarSearch, Video, FileCheck2 } from 'lucide-react';
 import Reveal from './Reveal';
 
 const STEPS = [
-  {
-    step: '01',
-    icon: <UserPlus size={20} className="text-indigo-600" />,
-    title: 'Create your account',
-    description: 'Sign up as a patient, doctor, or clinic in under a minute — no paperwork.',
-  },
-  {
-    step: '02',
-    icon: <CalendarSearch size={20} className="text-indigo-600" />,
-    title: 'Find & book a slot',
-    description: 'Browse verified doctors and grab a real-time slot that fits your schedule.',
-  },
-  {
-    step: '03',
-    icon: <Video size={20} className="text-indigo-600" />,
-    title: 'Consult with AI capture',
-    description: 'Meet over live video while AI-assisted capture surfaces notes in real time.',
-  },
-  {
-    step: '04',
-    icon: <FileCheck2 size={20} className="text-indigo-600" />,
-    title: 'Get your report & follow up',
-    description: 'Reports, messages and next steps land in one thread you can revisit anytime.',
-  },
+  { icon: UserPlus, title: 'Create your account', description: 'Sign up in under a minute and get 100 free credits. No paperwork.', tint: 'bg-[#EEEDFF] text-indigo-600', card: 'bg-white' },
+  { icon: CalendarSearch, title: 'Find & book a slot', description: 'Browse verified doctors and grab a real-time slot that fits your day.', tint: 'bg-white text-[#9A3412]', card: 'bg-[#FFF0E6]' },
+  { icon: Video, title: 'Meet by video', description: 'See your doctor face to face from home. The call opens 10 minutes before your slot.', tint: 'bg-white text-[#1E40AF]', card: 'bg-[#E6F1FF]' },
+  { icon: FileCheck2, title: 'Follow up with ease', description: 'Reports, messages and medicine reminders stay together, ready whenever you need them.', tint: 'bg-white text-[#05603A]', card: 'bg-[#E7F7EF]' },
 ];
 
 const HowItWorks = () => (
-  <section id="how-it-works" className="max-w-5xl mx-auto px-6 md:px-10 py-20 md:py-28">
-    <Reveal className="text-center">
-      <p className="text-[11px] font-bold text-indigo-500 tracking-[0.2em] uppercase mb-3">The Process</p>
-      <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">
-        From booking to follow-up in four steps
-      </h2>
-    </Reveal>
+  <section id="how-it-works" className="px-4 sm:px-6 py-24">
+    <div className="max-w-6xl mx-auto">
+      <Reveal className="max-w-2xl mx-auto text-center">
+        <p className="text-sm font-extrabold text-indigo-600">How it works</p>
+        <h2 className="mt-2 text-[34px] md:text-[48px] font-extrabold leading-[1.08] tracking-[-0.035em] text-[#1E1B4B]">Four simple steps to feeling better</h2>
+        <p className="mt-4 text-lg text-[#4B4A6B]">No queues, no phone calls, no lost papers.</p>
+      </Reveal>
 
-    <div className="relative grid md:grid-cols-4 gap-6 mt-14">
-      <div className="hidden md:block absolute top-11 left-[12.5%] right-[12.5%] h-px bg-slate-100" />
-      {STEPS.map((s, i) => (
-        <Reveal key={s.step} delay={i * 100}>
-          <div className="relative bg-white border border-slate-100 rounded-2xl p-6 h-full hover:border-indigo-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-11 h-11 bg-indigo-50 rounded-xl flex items-center justify-center shrink-0">
-                {s.icon}
-              </div>
-              <span className="text-2xl font-bold text-slate-200 tracking-tight">{s.step}</span>
+      <div className="relative mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div aria-hidden="true" className="hidden lg:block absolute top-[52px] left-[12%] right-[12%] border-t-2 border-dashed border-[#C4C1F5]" />
+        {STEPS.map(({ icon: Icon, title, description, tint, card }, i) => (
+          <Reveal key={title} delay={i * 90} className={`relative rounded-[32px] p-7 ${card} ${card === 'bg-white' ? 'shadow-[0_8px_30px_rgba(79,70,229,0.08)]' : ''}`}>
+            <div className="flex items-center justify-between">
+              <span className={`relative w-14 h-14 rounded-full flex items-center justify-center shadow-[0_6px_16px_rgba(79,70,229,0.1)] ${tint}`}><Icon size={24} /></span>
+              <span className="text-5xl font-extrabold text-[#1E1B4B]/10">0{i + 1}</span>
             </div>
-            <h3 className="font-bold text-slate-900 tracking-tight">{s.title}</h3>
-            <p className="text-sm text-slate-500 mt-2 leading-relaxed">{s.description}</p>
-          </div>
-        </Reveal>
-      ))}
+            <h3 className="mt-6 text-xl font-extrabold text-[#1E1B4B]">{title}</h3>
+            <p className="mt-2 text-[15px] leading-relaxed text-[#4B4A6B]">{description}</p>
+          </Reveal>
+        ))}
+      </div>
     </div>
   </section>
 );

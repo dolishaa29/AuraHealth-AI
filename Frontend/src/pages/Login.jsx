@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Cookies from 'js-cookie';
+import { Heart, Check, CalendarCheck, Eye, EyeOff } from 'lucide-react';
 
 const Login = () => {
   const navigate = useNavigate();
   const [role, setRole] = useState('user');
+  const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -68,7 +70,6 @@ const Login = () => {
       setLoading(false);
     }
 
-
   }
 
   else if(role==="admin"){
@@ -80,7 +81,7 @@ const Login = () => {
       );
 
       if (response.status === 200 && response.data.token) {
-      
+
         Cookies.set("emtoken", response.data.token, { expires: 1 });
 
         setMessage("Login Successful");
@@ -99,118 +100,99 @@ const Login = () => {
 
 }
 
+  const roles = [{ id: 'user', label: 'Patient' }, { id: 'doctor', label: 'Doctor' }, { id: 'admin', label: 'Admin' }];
+  const inputCls = "w-full h-[54px] px-5 rounded-full bg-[#F6F6FD] border-2 border-transparent text-[15px] font-medium text-[#1E1B4B] placeholder:text-[#9A99B5] focus:outline-none focus:border-indigo-300 focus:bg-white transition-all";
+
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#fafaf9] bg-[radial-gradient(ellipse_at_top,_#f4f6ec,_#fafaf9)] font-sans overflow-hidden">
+    <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 bg-[#F6F6FD] font-sans text-[#1E1B4B]">
+      <div className="w-full max-w-[1180px] flex flex-wrap gap-5 p-4 sm:p-5 rounded-[40px] bg-white shadow-[0_20px_60px_rgba(79,70,229,0.08)]">
 
-      <div className="motion-safe:animate-[floatSlow_9s_ease-in-out_infinite] absolute top-[-10%] left-[-5%] w-96 h-96 bg-violet-200/40 blur-[100px] rounded-full" />
-      <div className="motion-safe:animate-[floatSlower_11s_ease-in-out_infinite] absolute bottom-[-10%] right-[-5%] w-96 h-96 bg-indigo-200/40 blur-[100px] rounded-full" />
+        <section className="relative overflow-hidden flex-[1_1_420px] min-h-[300px] lg:min-h-[560px] rounded-[30px] bg-[#E9E8FF] p-8 sm:p-10 flex flex-col justify-between gap-8">
+          <div aria-hidden="true" className="absolute -right-20 -top-20 w-72 h-72 rounded-full bg-[#DAD8FF]" />
+          <div aria-hidden="true" className="absolute -left-16 -bottom-28 w-64 h-64 rounded-full bg-[#D2CFFF]" />
+          <div className="relative flex items-center gap-2.5">
+            <div className="w-[42px] h-[42px] rounded-[15px] bg-indigo-600 text-white flex items-center justify-center">
+              <Heart size={22} />
+            </div>
+            <span className="font-extrabold text-[21px] tracking-tight">AuraHealth</span>
+          </div>
+          <div className="relative">
+            <h1 className="text-4xl sm:text-[42px] font-extrabold leading-[1.1] tracking-[-0.035em]">Feeling better starts here.</h1>
+            <p className="mt-3.5 text-base leading-relaxed text-[#4B4A6B] max-w-[420px]">Doctors, reports, medicine reminders and SOS, all in one gentle place.</p>
+          </div>
+          <div className="relative hidden sm:flex flex-col gap-2.5">
+            <div className="self-start flex items-center gap-3 py-3 pl-3 pr-5 rounded-full bg-white shadow-[0_10px_30px_rgba(79,70,229,0.1)]">
+              <span className="w-[38px] h-[38px] rounded-full bg-[#E7F7EF] text-[#05603A] flex items-center justify-center"><Check size={18} strokeWidth={3} /></span>
+              <span className="text-sm font-bold">Vitamin D3 taken · 2:00 PM</span>
+            </div>
+            <div className="self-start ml-10 flex items-center gap-3 py-3 pl-3 pr-5 rounded-full bg-white shadow-[0_10px_30px_rgba(79,70,229,0.1)]">
+              <span className="w-[38px] h-[38px] rounded-full bg-[#FFF0E6] text-[#9A3412] flex items-center justify-center"><CalendarCheck size={18} /></span>
+              <span className="text-sm font-bold">Appointment confirmed · Tue 10:30</span>
+            </div>
+          </div>
+        </section>
 
+        <main className="flex-[1_1_400px] flex items-center justify-center px-2 py-8 sm:px-6">
+          <form onSubmit={handleLogin} className="w-full max-w-[400px] flex flex-col gap-[18px]">
+            <div>
+              <h2 className="text-3xl font-extrabold tracking-tight">Welcome back</h2>
+              <p className="mt-1.5 text-[15px] text-[#6B6A8A]">So good to see you again.</p>
+            </div>
 
+            <div role="radiogroup" aria-label="Sign in as" className="grid grid-cols-3 gap-1 p-1.5 rounded-full bg-[#F6F6FD]">
+              {roles.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={role === r.id}
+                  onClick={() => setRole(r.id)}
+                  className={`h-[42px] rounded-full text-sm font-bold transition-all ${role === r.id ? 'bg-indigo-600 text-white shadow-md' : 'text-[#4B4A6B] hover:text-indigo-600'}`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
 
-      <div className="motion-safe:animate-[fadeInUp_0.6s_ease-out_both] relative z-10 w-full max-w-[420px] p-10 bg-white/80 backdrop-blur-xl rounded-[2.5rem] border border-white shadow-[0_30px_60px_-15px_rgba(147,51,234,0.1)] mx-4">
+            <label className="flex flex-col gap-2 text-sm font-bold">
+              Email
+              <input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required className={inputCls} />
+            </label>
 
-        <div className="text-center mb-10">
-          <h1 className="text-3xl font-black tracking-tighter text-slate-900">
-            Aura<span className="bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">Health</span>
-          </h1>
-          <p className="text-slate-400 text-[11px] font-bold uppercase tracking-[0.2em] mt-2">Professional Care Portal</p>
-        </div>
+            <label className="flex flex-col gap-2 text-sm font-bold">
+              <span className="flex justify-between">
+                Password
+                {role !== 'admin' && (
+                  <button type="button" onClick={() => navigate(`/forgotpassword/${role}`)} className="text-[13px] font-bold text-indigo-600 hover:text-indigo-700">
+                    Forgot it?
+                  </button>
+                )}
+              </span>
+              <span className="relative flex">
+                <input type={showPassword ? 'text' : 'password'} placeholder="Your password" value={password} onChange={(e) => setPassword(e.target.value)} required className={`${inputCls} pr-14`} />
+                <button type="button" onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? 'Hide password' : 'Show password'} className="absolute right-[7px] top-[7px] w-10 h-10 rounded-full bg-white text-[#4B4A6B] flex items-center justify-center hover:text-indigo-600">
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </span>
+            </label>
 
-        <div className="flex bg-slate-100/50 p-1.5 rounded-2xl mb-8 border border-slate-200/60 shadow-inner">
-          {['user', 'doctor', 'admin'].map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => setRole(r)}
-              className={`flex-1 py-3 text-xs font-bold uppercase rounded-xl transition-all duration-300 ${
-                role === r 
-                ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg scale-[1.03]' 
-                : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              {r}
+            {message && <p className="px-4 py-3 rounded-2xl bg-[#FFECEB] text-[#B42318] text-sm font-semibold">{message}</p>}
+
+            <button type="submit" disabled={loading} className="h-14 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-base font-extrabold shadow-[0_12px_24px_-8px_rgba(79,70,229,0.55)] transition-all active:scale-[0.98] disabled:opacity-50">
+              {loading ? 'Signing in…' : 'Sign in'}
             </button>
-          ))}
-        </div>
 
-        <form onSubmit={handleLogin} className="space-y-6">
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 mb-2">Login </label>
-            <input 
-              type="email" 
-              placeholder="Email"
-              value={email}
-              onChange={(e)=>setEmail(e.target.value)}
-              required
-              className="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-400 transition-all shadow-sm"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 mb-2">Secure </label>
-            <input 
-              type="password" 
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-400 transition-all shadow-sm"
-            />
-          </div>
-          {role === "user" && (
-            <div className="text-right mb-0">
-              <button 
-                type="button"
-                onClick={() => navigate('/forgotpassword/user')}
-                className="text-sm text-violet-600 hover:underline font-semibold"
-              >
-                Forgot Password?
-              </button>
-            </div>
-          )
-          }
-            {role === "doctor" && (
-            <div className="text-right mb-0">
-              <button 
-                type="button"
-                onClick={() => navigate('/forgotpassword/doctor')}
-                className="text-sm text-violet-600 hover:underline font-semibold"
-              >
-                Forgot Password?
-              </button>
-            </div>
-          )
-          }
-           
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-4 mt-4 bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 text-white font-bold rounded-2xl shadow-xl shadow-violet-200 transform transition-all active:scale-[0.98] disabled:opacity-50"
-          >
-            {loading ? "Signing In..." : `Sign In as ${role.charAt(0).toUpperCase() + role.slice(1)}`}
-          </button>
-        </form>
-        
-         {role === "user" && (
-          <p className="text-center text-sm text-slate-500 mt-6">
-            Don't have an account? 
-            <button onClick={() => navigate('/Userregister')} className="text-violet-600 hover:underline ml-1 font-semibold">Register</button>
-          </p>
-        )}
-
-        {role === "doctor" && (
-          <p className="text-center text-sm text-slate-500 mt-6">
-            Don't have an account?  
-            <button onClick={() => navigate('/Doctorregister')} className="text-violet-600 hover:underline ml-1 font-semibold">Register</button>
-          </p>
-        )}
-
-        {message && (
-          <p className={`text-center text-xs mt-4 font-bold text-red-600`}>
-            {message}
-          </p>
-        )}
-
+            {role !== 'admin' && (
+              <p className="text-center text-sm text-[#6B6A8A]">
+                New here?{' '}
+                <button type="button" onClick={() => navigate(role === 'doctor' ? '/Doctorregister' : '/Userregister')} className="font-extrabold text-indigo-600 hover:text-indigo-700">
+                  Create an account
+                </button>
+                {role === 'user' && ' and get 100 free credits'}
+              </p>
+            )}
+          </form>
+        </main>
       </div>
     </div>
   );

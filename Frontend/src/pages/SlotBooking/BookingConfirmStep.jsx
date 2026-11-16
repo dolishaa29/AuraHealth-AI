@@ -1,72 +1,47 @@
 import React from "react";
-import { ChevronLeft, FileText, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { ChevronLeft, AlertCircle, Loader2 } from "lucide-react";
 import { formatTime } from "./utils";
 
-const SummaryRow = ({ label, value, highlight }) => (
-  <div className="flex items-center justify-between">
-    <span className="text-xs text-slate-400 font-semibold">{label}</span>
-    <span className={`text-xs font-bold ${highlight ? "text-indigo-600" : "text-slate-700"}`}>{value}</span>
-  </div>
-);
-
 const BookingConfirmStep = ({
-  selectedDoctor,
-  selectedDate,
-  selectedSlot,
-  description,
-  onDescriptionChange,
-  error,
-  submitting,
-  onBack,
-  onSubmit,
+  selectedDoctor, selectedDate, selectedSlot, description, onDescriptionChange, error, submitting, onBack, onSubmit,
 }) => (
-  <div className="max-w-xl">
-    <button
-      onClick={onBack}
-      className="flex items-center gap-1.5 text-slate-400 text-xs font-bold uppercase tracking-widest hover:text-indigo-600 transition-colors mb-6"
-    >
-      <ChevronLeft size={14} strokeWidth={2.5} /> Back to Slots
+  <div className="max-w-2xl flex flex-col gap-5">
+    <button onClick={onBack} className="self-start h-10 pl-2 pr-4 rounded-full bg-white text-[#4B4A6B] text-sm font-bold flex items-center gap-1 hover:text-indigo-600 shadow-[0_8px_30px_rgba(79,70,229,0.06)]">
+      <ChevronLeft size={16} /> Change time
     </button>
 
-    <div className="motion-safe:animate-[fadeInUp_0.35s_ease-out_both] bg-white border border-slate-100 rounded-3xl p-5 mb-4 shadow-sm">
-      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Booking Summary</p>
-      <div className="space-y-2.5">
-        <SummaryRow label="Doctor" value={`Dr. ${selectedDoctor?.name}`} />
-        <SummaryRow label="Specialization" value={selectedDoctor?.specialization} />
-        <SummaryRow label="Date" value={selectedDate} />
-        <SummaryRow label="Time" value={formatTime(selectedSlot)} highlight />
+    <section className="relative overflow-hidden rounded-[32px] bg-[#E9E8FF] p-7">
+      <div aria-hidden="true" className="absolute -right-14 -top-16 w-52 h-52 rounded-full bg-[#DAD8FF]" />
+      <p className="relative text-sm font-bold text-indigo-600">You're booking</p>
+      <h2 className="relative mt-1 text-2xl font-extrabold tracking-tight">Dr. {selectedDoctor?.name}</h2>
+      <p className="relative text-[15px] text-[#4B4A6B]">{selectedDoctor?.specialization}</p>
+      <div className="relative mt-4 flex flex-wrap gap-2">
+        <span className="px-4 py-2 rounded-full bg-white text-sm font-bold">{new Date(selectedDate).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</span>
+        <span className="px-4 py-2 rounded-full bg-indigo-600 text-white text-sm font-bold">{formatTime(selectedSlot)}</span>
       </div>
-    </div>
+    </section>
 
-    <div className="motion-safe:animate-[fadeInUp_0.35s_ease-out_both] bg-white border border-slate-100 rounded-3xl p-5 mb-4 shadow-sm" style={{ animationDelay: '60ms' }}>
-      <div className="flex items-center gap-2 mb-3">
-        <FileText size={14} className="text-indigo-500" />
-        <label className="text-xs font-bold text-slate-700 uppercase tracking-widest">Reason for Visit</label>
+    <section className="bg-white rounded-[28px] p-6 shadow-[0_8px_30px_rgba(79,70,229,0.06)] flex flex-col gap-4">
+      <label className="flex flex-col gap-2 text-base font-extrabold">
+        What's bothering you?
+        <textarea value={description} onChange={(e) => onDescriptionChange(e.target.value)} rows={4}
+          placeholder="Describe your symptoms so the doctor can prepare"
+          className="px-4 py-3.5 rounded-[20px] bg-[#F6F6FD] border-2 border-transparent text-sm font-medium focus:outline-none focus:border-indigo-300 focus:bg-white resize-none" />
+      </label>
+
+      {error && <p className="px-4 py-3 rounded-[18px] bg-[#FFECEB] text-[#B42318] text-sm font-semibold flex items-center gap-2"><AlertCircle size={16} /> {error}</p>}
+
+      <div className="flex justify-between items-center px-4 py-3.5 rounded-[20px] bg-[#F6F6FD] text-sm">
+        <span className="text-[#4B4A6B]">Booking fee</span>
+        <strong>20 credits</strong>
       </div>
-      <textarea
-        placeholder="Describe your symptoms or health concern..."
-        value={description}
-        onChange={(e) => onDescriptionChange(e.target.value)}
-        className="w-full px-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 transition-all resize-none h-32 leading-relaxed"
-      />
-    </div>
 
-    {error && (
-      <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-100 rounded-2xl mb-4">
-        <AlertCircle size={14} className="text-red-500 shrink-0" />
-        <p className="text-red-500 text-xs font-semibold">{error}</p>
-      </div>
-    )}
-
-    <button
-      onClick={onSubmit}
-      disabled={submitting || !description.trim()}
-      className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl shadow-sm transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
-    >
-      {submitting
-        ? <><Loader2 size={17} className="animate-spin" /> Booking...</>
-        : <><CheckCircle2 size={16} /> Confirm Appointment</>}
-    </button>
+      <button onClick={onSubmit} disabled={submitting || !description.trim()}
+        className="h-[54px] rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-base font-extrabold flex items-center justify-center gap-2 disabled:opacity-50 shadow-[0_10px_20px_-6px_rgba(79,70,229,0.5)]">
+        {submitting && <Loader2 size={18} className="animate-spin" />} {submitting ? "Booking…" : "Confirm booking"}
+      </button>
+      <p className="text-center text-xs text-[#6B6A8A]">If the booking fails, your credits come straight back.</p>
+    </section>
   </div>
 );
 
