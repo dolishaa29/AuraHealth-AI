@@ -7,32 +7,32 @@ let usermodel = mongo.Schema({
    contact: { type: Number },
    address: { type: String },
 
-   userstatus: { 
-      type: String, 
-      default: "unblock", 
-      enum: ["block", "unblock"] 
+   userstatus: {
+      type: String,
+      default: "unblock",
+      enum: ["block", "unblock"]
    },
 
-   gender: { 
-      type: String, 
-      default: null, 
-      enum: ["male", "female", "other"] 
+   gender: {
+      type: String,
+      default: null,
+      enum: ["male", "female", "other"]
    },
    dob: { type: Date, default: null },
 
    fatherName: { type: String, default: null },
    motherName: { type: String, default: null },
 
-   maritalStatus: { 
-      type: String, 
-      default: null, 
-      enum: ["single", "married", "other", null] 
+   maritalStatus: {
+      type: String,
+      default: null,
+      enum: ["single", "married", "other", null]
    },
 
    nationality: { type: String, default: null },
 
-   bloodGroup: { 
-      type: String, 
+   bloodGroup: {
+      type: String,
       default: null,
    },
 
@@ -40,7 +40,6 @@ let usermodel = mongo.Schema({
    emergencyContactNumber: { type: Number, default: null },
    emergencyRelation: { type: String, default: null },
 
-   // People the SOS button messages on WhatsApp. Phone is stored as digits with country code.
    emergencyContacts: {
       type: [{
          name: { type: String, required: true, trim: true },
@@ -50,10 +49,13 @@ let usermodel = mongo.Schema({
       default: [],
    },
 
-   image: { 
-      type: String, 
-      default: null 
+   image: {
+      type: String,
+      default: null
    },
+
+
+   credits: { type: Number, min: 0 },
 
 }, { timestamps: true });
 

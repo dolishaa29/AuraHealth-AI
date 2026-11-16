@@ -29,8 +29,6 @@ function cleanPhone(phone) {
   return null;
 }
 
-
-
 function getContactList(user) {
   if (user.emergencyContacts && user.emergencyContacts.length > 0) {
     const list = [];
@@ -59,8 +57,6 @@ function getContactList(user) {
   return [];
 }
 
-
-
 exports.getEmergencyContacts = async (req, res) => {
   const user = req.user;
 
@@ -70,8 +66,6 @@ exports.getEmergencyContacts = async (req, res) => {
     contacts: getContactList(user),
   });
 };
-
-
 
 exports.saveEmergencyContacts = async (req, res) => {
   const user = req.user;
@@ -108,9 +102,6 @@ exports.saveEmergencyContacts = async (req, res) => {
   }
 
   user.emergencyContacts = newContacts;
-
-  // Save only the contacts field. user.save() would check the whole profile,
-  // so an old bad value somewhere else (like maritalStatus: "") would stop this save.
   try {
     await User.updateOne({ _id: user._id }, { $set: { emergencyContacts: user.emergencyContacts } });
   } catch (err) {

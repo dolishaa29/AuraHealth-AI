@@ -8,8 +8,9 @@ let router=express.Router();
 
 router.post("/appointrequest",auths ,appointrequest);
 router.get("/viewappointment",auth, viewappointment);
-router.put("/appointmentstatus",appointmentstatus);
-router.post("/approveappointment",approveappointment);
+
+router.put("/appointmentstatus",auth,appointmentstatus);
+router.post("/approveappointment",auth,approveappointment);
 router.get("/available-slots", auths, getAvailableSlots);
 router.post("/book-slot", auths, bookSlot);
 router.get("/appointment/:appointmentId/briefing", authd, getBriefing);

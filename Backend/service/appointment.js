@@ -3,9 +3,10 @@ let rec5=require("../model/Appointment/appointment");
 let rec=require("../model/doctor");
 const Report = require("../model/report");
 const { getModel } = require("../config/gemini");
+const { CREDIT_COSTS, spendCredits, addCredits, notEnoughCreditsMsg } = require("../helper/credithelper");
 exports.appointrequest=async(req,res)=>
 {
- console.log("Appointment request received");   
+ console.log("Appointment request received");
  let user=req.user;
  let doctorid=req.body.doctorid;
  let description=req.body.description;
@@ -13,6 +14,19 @@ exports.appointrequest=async(req,res)=>
  if(!data)
  {
     return res.status(404).json({success: false,msg:'Doctor not found'});
+ }
+
+ if(!description || !String(description).trim())
+ {
+    return res.status(400).json({success: false,msg:'Please describe your reason for visit'});
+ }
+
+
+ const cost = CREDIT_COSTS.appointmentRequest;
+ const balance = await spendCredits(user._id, cost, 'Appointment request to Dr. ' + (data.name || ''));
+ if(balance === null)
+ {
+    return res.status(402).json({success: false,msg:notEnoughCreditsMsg(cost, 'Requesting an appointment')});
  }
 
  let appointment=new rec4({
@@ -24,8 +38,13 @@ exports.appointrequest=async(req,res)=>
     description:description,
  });
 
- await appointment.save();
-    return res.status(201).json({success: true,msg:'appointment request sent successfully'});
+ try {
+    await appointment.save();
+ } catch (err) {
+    await addCredits(user._id, cost, 'Refund: appointment request failed');
+    throw err;
+ }
+    return res.status(201).json({success: true,msg:'appointment request sent successfully',credits:balance});
 }
 
 exports.viewappointment=async(req,res)=>
@@ -59,9 +78,13 @@ exports.viewappointment=async(req,res)=>
 }
 
 exports.appointmentstatus=async(req,res)=>
-{   
+{
     let id=req.body.id;
     let status=req.body.status;
+    if(!["pending","approved","rejected"].includes(status))
+    {
+        return res.status(400).json({success: false,msg:'Invalid status'});
+    }
     let appointment=await rec4.findByIdAndUpdate({_id:id},{status:status});
     if(appointment)
     {
@@ -158,6 +181,13 @@ exports.bookSlot = async (req, res) => {
     return res.status(400).json({ success: false, msg: 'This slot was just taken. Please choose another.' });
   }
 
+
+  const cost = CREDIT_COSTS.slotBooking;
+  const balance = await spendCredits(user._id, cost, 'Appointment with Dr. ' + (doctor.name || '') + ' on ' + date + ' ' + time);
+  if (balance === null) {
+    return res.status(402).json({ success: false, msg: notEnoughCreditsMsg(cost, 'Booking a slot') });
+  }
+
   const appointment = new rec5({
     userid: user._id,
     name: user.name,
@@ -172,13 +202,14 @@ exports.bookSlot = async (req, res) => {
   try {
     await appointment.save();
   } catch (err) {
+    await addCredits(user._id, cost, 'Refund: booking failed');
     if (err.code === 11000) {
-      return res.status(400).json({ success: false, msg: 'This slot was just taken. Please choose another.' });
+      return res.status(400).json({ success: false, msg: 'This slot was just taken. Please choose another. Your credits were refunded.' });
     }
     throw err;
   }
 
-  return res.status(201).json({ success: true, msg: 'Appointment booked successfully!' });
+  return res.status(201).json({ success: true, msg: 'Appointment booked successfully!', credits: balance });
 };
 
 exports.getBriefing = async (req, res) => {

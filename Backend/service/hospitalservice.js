@@ -36,7 +36,7 @@ exports.nearbyHospitals = async (req, res) => {
     getOurDoctors(lat, lng, radiusKm, specialization),
     getOutsideHospitals(lat, lng, radiusKm),
   ]);
-  const hospitals = outsideHospitals || []; 
+  const hospitals = outsideHospitals || [];
 
   await addRoadDistances(lat, lng, hospitals, doctors);
   sortHospitals(hospitals);
@@ -50,8 +50,6 @@ exports.nearbyHospitals = async (req, res) => {
     externalUnavailable: outsideHospitals === null,
   });
 };
-
-
 
 exports.route = async (req, res) => {
   const fromLat = parseFloat(req.query.fromLat);

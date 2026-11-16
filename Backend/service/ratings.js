@@ -38,7 +38,7 @@ exports.viewrating = async (req, res) => {
         let data = await ratings.find({ doctorId: doctorId });
 
         console.log("Fetched Data:", data);
-        
+
         res.status(200).json({
             status: true,
             data: data

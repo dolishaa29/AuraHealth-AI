@@ -95,16 +95,16 @@ exports.userlogin=async(req,res)=>
     }
     if(data.userstatus==="block")
     {
-        return res.status(403).json({ 
-            success: false, 
-            msg: 'Your account is blocked by the admin. Login failed.' 
+        return res.status(403).json({
+            success: false,
+            msg: 'Your account is blocked by the admin. Login failed.'
         });
     }
     let lpass=data.password;
     let pass=await bcrypt.compare(password,lpass);
     if(pass)
     {
-    let token=jwt.sign({token:data.email},process.env.JWT_SECRET,{expiresIn:"1h"});
+    let token=jwt.sign({token:data.email},process.env.JWT_SECRET,{expiresIn:"1d"});
     console.log("token:",token);
     res.status(200).json({msg:"user logged in successfully",token:token});
     }
@@ -173,87 +173,95 @@ exports.userviewapp=async(req,res)=>{
     console.log("Appointments for user:", appointments);
     return res.status(200).json({ success: true, appointments });
 };
-    
 
-exports.otpgenerate=async(req,res)=>
-{
-    try
-    {
-    let email=req.body.email;
-    let role=req.body.role;
-    let user=await rec.findOne({email:email});
-    if(!user)
-    {
-        return res.status(400).json({msg:"no user with that email found"});
-
+exports.otpgenerate=async(req,res)=>{
+    const role="user";
+    const email=(req.body.email||"").trim();
+    if(!email){
+        return res.status(400).json({success:false,msg:"email is required"});
     }
-    let otp=crypto.randomInt(100000,1000000).toString();
-    let existingotp=await otps.findOne({email:email,role:role});
-    if(existingotp)
-    {
-        existingotp.otp=otp;
-        existingotp.createdAt=Date.now();
-        await existingotp.save();
+    try{
+        let user=await rec.findOne({email:email});
+        if(!user){
+            return res.status(404).json({success:false,msg:"no user account found with this email"});
+        }
+        if(user.userstatus==="block"){
+            return res.status(403).json({success:false,msg:"your account is blocked by the admin"});
+        }
+        let otp=crypto.randomInt(100000,1000000).toString();
+        await otps.findOneAndUpdate(
+            {email:email,role:role},
+            {email:email,role:role,otp:otp,createdAt:Date.now()},
+            {upsert:true}
+        );
+        try{
+            await transporter.sendMail({
+                from: process.env.EMAIL,
+                to: email,
+                subject: "Password Reset OTP",
+                text: `Hi ${user.name || ""}, your OTP for password reset is: ${otp}. It is valid for 10 minutes.`
+            });
+        }catch(mailErr){
+            console.log("User OTP mail error:", mailErr.message);
+            await otps.deleteOne({email:email,role:role});
+            return res.status(502).json({success:false,msg:"could not send OTP email, please try again later"});
+        }
+        return res.status(200).json({success:true,msg:"OTP sent to email"});
     }
-    else{
-        let newotp=new otps({email:email,role:role,otp:otp});
-        await newotp.save();
-    }
-    const mail = {
-        from: process.env.EMAIL,
-        to: email,
-        subject: "Password Reset OTP",
-        text: `Your OTP for password reset is: ${otp}. It is valid for 10 minutes.`
-    };
-
-    await transporter.sendMail(mail);
-    return res.status(200).json({ success: true, msg: "OTP sent to email" });  
-    }
-    catch(err)
-    {
-        console.log(err);
-        res.status(500).json({msg:"internal server error"});
+    catch(err){
+        console.log("User OTP generate error:", err);
+        return res.status(500).json({success:false,msg:"could not generate OTP, please try again"});
     }
 }
 
 exports.otpverify=async(req,res)=>
 {
+    const role="user";
+    const email=(req.body.email||"").trim();
+    const otp=String(req.body.otp||"").trim();
+    if(!email || !otp){
+        return res.status(400).json({success:false,msg:"email and OTP are required"});
+    }
     try
     {
-    let email=req.body.email;
-    let otp=req.body.otp;
-    let role=req.body.role;
-    let record=await otps.findOne({email:email,otp:otp,role:role});
-    if(!record)
-    {
-        return res.status(400).json({success: false,msg:"invalid OTP"});
-
-    }
+        let record=await otps.findOne({email:email,otp:otp,role:role});
+        if(!record){
+            return res.status(400).json({success:false,msg:"invalid or expired OTP"});
+        }
+        let user=await rec.findOne({email:email});
+        if(!user){
+            return res.status(404).json({success:false,msg:"no user account found with this email"});
+        }
+        const oldHash=user.password;
         let password=crypto.randomBytes(8).toString("hex");
         let hp=await bcrypt.hash(password,10);
-        await rec.findOneAndUpdate({email:email},{password:hp});
-        const mail = {
-            from: process.env.EMAIL,
-            to: email,
-            subject: "Password Reset Successful",
-            text: `Your password has been reset successfully. Your new password is: ${password}`
-        };
-        await transporter.sendMail(mail);
+        await rec.updateOne({_id:user._id},{password:hp});
+        try{
+            await transporter.sendMail({
+                from: process.env.EMAIL,
+                to: email,
+                subject: "New Password After OTP Verification",
+                text: `Hi ${user.name || ""}, your OTP has been verified successfully. Your new password is: ${password}. Please change it after logging in.`
+            });
+        }catch(mailErr){
 
-        await otps.deleteOne({email:email,otp:otp,role:role});
-        return res.status(200).json({success: true,msg:"OTP verified successfully"});
+            console.log("User new-password mail error:", mailErr.message);
+            await rec.updateOne({_id:user._id},{password:oldHash});
+            return res.status(502).json({success:false,msg:"could not send new password email, please try again"});
+        }
+        await otps.deleteOne({_id:record._id});
+        return res.status(200).json({success:true,msg:"OTP verified successfully and new password sent to email"});
     }
     catch(err)
     {
-        console.log(err);
-        res.status(500).json({msg:"internal server error"});
+        console.log("User OTP verify error:", err);
+        return res.status(500).json({success:false,msg:"could not verify OTP, please try again"});
     }
-
 }
 
 exports.blockuser = async (req, res) => {
     try {
-        
+
         const id = req.body.id;
         console.log("user "+id);
         const user = await rec.findById(id);
@@ -262,7 +270,7 @@ exports.blockuser = async (req, res) => {
         user.userstatus = newStatus;
         console.log(newStatus);
         await user.save();
-       
+
         return res.status(200).json({
             success: true,
             msg: `User has been ${newStatus} successfully`,
@@ -350,7 +358,7 @@ exports.updateuser=async(req,res)=>
             dob:req.body.dob,
             fatherName:req.body.fatherName,
             motherName:req.body.motherName,
-            maritalStatus:req.body.maritalStatus || null, // empty choice -> null ("" is not allowed by the model)
+            maritalStatus:req.body.maritalStatus || null,
             nationality:req.body.nationality,
             bloodGroup:req.body.bloodGroup,
             emergencyContactName:req.body.emergencyContactName,

@@ -1,10 +1,9 @@
 const { getModel, GEMINI_API_KEY } = require("../config/gemini");
 const cloudinary = require("../config/cloudinary");
 const Report = require("../model/report");
+const { CREDIT_COSTS, spendCredits, addCredits, notEnoughCreditsMsg } = require("../helper/credithelper");
 
 const model = getModel();
-
-
 
 exports.handleReport = async (req, res) => {
   try {
@@ -15,29 +14,40 @@ exports.handleReport = async (req, res) => {
     if (req.file) {
       const title = req.file.originalname || "Untitled Report";
 
-      const result = await model.generateContent([
-        "You're explaining this medical report directly to the patient, in a warm, natural voice — like a doctor talking them through it, not filling out a form. Write it as flowing paragraphs, not a rigid template or bullet checklist. Walk through what the report actually found, explain anything abnormal in plain language and why it matters, and close with practical, reassuring next steps. Keep medical jargon to a minimum and explain any term you do use. Please give a summarized version of the report in points without astric * , please make it easy to read and understand. Do not include any personal information or identifiers from the report. If the report is incomplete or unclear, acknowledge that and suggest what the patient should do next. The summary should be concise, clear, and empathetic. If there's nothing like medical report then tell its not a medical report and ask the user to upload a valid medical report.  ",
-        { inlineData: { data: req.file.buffer.toString("base64"), mimeType: req.file.mimetype } },
-      ]);
-      const summary = result.response.text();
+      const cost = CREDIT_COSTS.reportAnalysis;
+      const balance = await spendCredits(req.user._id, cost, "Report analysis: " + title);
+      if (balance === null) {
+        return res.status(402).json({ success: false, message: notEnoughCreditsMsg(cost, "Report analysis") });
+      }
 
-      const uploaded = await cloudinary.uploadBuffer(req.file.buffer, {
-        public_id: `${req.user._id}_${Date.now()}`,
-      });
+      try {
+        const result = await model.generateContent([
+          "You're explaining this medical report directly to the patient, in a warm, natural voice — like a doctor talking them through it, not filling out a form. Write it as flowing paragraphs, not a rigid template or bullet checklist. Walk through what the report actually found, explain anything abnormal in plain language and why it matters, and close with practical, reassuring next steps. Keep medical jargon to a minimum and explain any term you do use. Please give a summarized version of the report in points without astric * , please make it easy to read and understand. Do not include any personal information or identifiers from the report. If the report is incomplete or unclear, acknowledge that and suggest what the patient should do next. The summary should be concise, clear, and empathetic. If there's nothing like medical report then tell its not a medical report and ask the user to upload a valid medical report.  ",
+          { inlineData: { data: req.file.buffer.toString("base64"), mimeType: req.file.mimetype } },
+        ]);
+        const summary = result.response.text();
 
-      const report = await Report.create({
-        user: req.user._id,
-        title,
-        summary,
-        fileUrl: uploaded.secure_url,
-        publicId: uploaded.public_id,
-        messages: [
-          { role: "user", text: title, isPdf: true },
-          { role: "bot", text: summary },
-        ],
-      });
+        const uploaded = await cloudinary.uploadBuffer(req.file.buffer, {
+          public_id: `${req.user._id}_${Date.now()}`,
+        });
 
-      return res.status(200).json({ success: true, report });
+        const report = await Report.create({
+          user: req.user._id,
+          title,
+          summary,
+          fileUrl: uploaded.secure_url,
+          publicId: uploaded.public_id,
+          messages: [
+            { role: "user", text: title, isPdf: true },
+            { role: "bot", text: summary },
+          ],
+        });
+
+        return res.status(200).json({ success: true, report, credits: balance });
+      } catch (err) {
+        await addCredits(req.user._id, cost, "Refund: report analysis failed");
+        throw err;
+      }
     }
 
     const { text, reportId } = req.body;
@@ -59,8 +69,6 @@ exports.handleReport = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
-
 
 exports.getReports = async (req, res) => {
   try {

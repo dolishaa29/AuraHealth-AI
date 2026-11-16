@@ -9,7 +9,7 @@ async function auth(req, res, next) {
       const data = jwt.verify(token, process.env.JWT_SECRET);
 
       let user = await usermodel.findOne({ email: data.token });
-      
+
       if (!user) return res.status(403).json({ msg: "user not found" });
       else {
         req.user = user;
@@ -20,6 +20,10 @@ async function auth(req, res, next) {
       return res.status(401).json({ msg: "Please Login First" });
     }
   } catch (err) {
+
+    if (err.name === "TokenExpiredError" || err.name === "JsonWebTokenError") {
+      return res.status(401).json({ msg: "Your session has expired. Please log in again.", expired: true });
+    }
     console.log(err);
     res.status(500).json({
       error: "Internal Server Error",

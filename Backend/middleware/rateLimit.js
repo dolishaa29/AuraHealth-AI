@@ -43,4 +43,19 @@ const hospitalLimiter = rateLimit({
   message: { success: false, message: "Too many requests, please slow down." },
 });
 
-module.exports = { chatLimiter, skinAnalysisLimiter, triageLimiter, hospitalLimiter };
+
+const GUEST_CHAT_PER_DAY = 5;
+const guestChatLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000,
+  limit: GUEST_CHAT_PER_DAY,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => Boolean(req.user),
+  store: new RedisStore({ sendCommand, prefix: "rl:guestchat:" }),
+  message: {
+    success: false,
+    message: "You've used your " + GUEST_CHAT_PER_DAY + " free messages for today. Log in to keep chatting.",
+  },
+});
+
+module.exports = { chatLimiter, skinAnalysisLimiter, triageLimiter, hospitalLimiter, guestChatLimiter };

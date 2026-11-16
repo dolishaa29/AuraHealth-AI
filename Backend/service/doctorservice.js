@@ -24,6 +24,7 @@ async function geocodeAddress(address) {
     }
 }
 
+
 const transporter = nodemailer.createTransport({
   service: "gmail",
 
@@ -107,7 +108,8 @@ exports.doctorregister = async (req, res) => {
     let existing=await rec.findOne({email:email})
     if(existing)
     {
-        return res.status(400).json({message:"already exist"})
+
+        return res.status(200).json({message:"already exist", alreadyRegistered:true})
     }
     let newdoctor = new rec({
       email: email,
@@ -131,7 +133,14 @@ exports.doctorregister = async (req, res) => {
       Password: ${password}`
     };
 
-    await transporter.sendMail(mail);
+    try {
+      await transporter.sendMail(mail);
+    } catch (mailErr) {
+
+      console.log("Doctor registration mail error:", mailErr);
+      await rec.deleteOne({ _id: newdoctor._id });
+      return res.status(500).json({ message: "could not send credentials email" });
+    }
 
     res.json({ message: "doctor registered successfully and email sent" });
 
@@ -153,9 +162,9 @@ exports.doctorlogin=async(req,res)=>
  }
 
 if (data.doctorstatus === "block") {
-        return res.status(403).json({ 
-            success: false, 
-            msg: 'Your account is blocked by the admin. Login failed.' 
+        return res.status(403).json({
+            success: false,
+            msg: 'Your account is blocked by the admin. Login failed.'
         });
     }
 
@@ -193,7 +202,7 @@ exports.doctorprofile=async(req,res)=>
 }
 
 exports.doctorlist=async(req,res)=>
-{   
+{
     let doctors=await rec.find({doctorstatus:"unblock"});
 
     return res.status(200).json({success: true,doctors})
@@ -240,7 +249,7 @@ exports.doctorviewapp=async(req,res)=>{
     const doctor = req.doctor;
     console.log("Doctor ID from request:", doctor._id);
     let appointments = await app.find({ doctorid: doctor._id });
-    
+
     console.log("Appointments for doctor:", appointments);
     return res.status(200).json({ success: true, appointments });
 }
@@ -337,78 +346,89 @@ exports.doctorprofileview=async(req,res)=>
 }
 
 exports.otpgenerate=async(req,res)=>{
+    const role="doctor";
+    const email=(req.body.email||"").trim();
+    if(!email){
+        return res.status(400).json({success:false,msg:"email is required"});
+    }
     try{
-    let email=req.body.email;
-    let role=req.body.role;
-    console.log("OTP generation request for email:", email, "and role:", role);
-    let doctor=await rec.findOne({email:email});
-    if(!doctor)    
-    {
-        return res.status(404).json({success: false,msg:'invalid doctor email'});
-    }
-    let otp=crypto.randomInt(100000, 1000000).toString();
-    console.log("Generated OTP:", otp);
-    let existingOtp = await otps.findOne({ email: email ,role: role});
-    if (existingOtp) {
-        existingOtp.otp = otp;
-        existingOtp.createdAt = Date.now();
-        await existingOtp.save();
-    } else {
-        let newOtp = new otps({ email: email, role: role, otp: otp });
-        await newOtp.save();
-    }
-
-    const mail = {
-        from: process.env.EMAIL,
-        to: email,
-        subject: "Password Reset OTP",
-        text: `hi Dr. ${email}, Your OTP for password reset is: ${otp}. It is valid for 10 minutes.`
-    };
-
-    await transporter.sendMail(mail);
-    return res.status(200).json({ success: true, msg: "OTP sent to email" });  
-
+        let doctor=await rec.findOne({email:email});
+        if(!doctor){
+            return res.status(404).json({success:false,msg:"no doctor account found with this email"});
+        }
+        if(doctor.doctorstatus==="block"){
+            return res.status(403).json({success:false,msg:"your account is blocked by the admin"});
+        }
+        let otp=crypto.randomInt(100000,1000000).toString();
+        await otps.findOneAndUpdate(
+            {email:email,role:role},
+            {email:email,role:role,otp:otp,createdAt:Date.now()},
+            {upsert:true}
+        );
+        try{
+            await transporter.sendMail({
+                from: process.env.EMAIL,
+                to: email,
+                subject: "Password Reset OTP",
+                text: `Hi Dr. ${doctor.name || ""}, your OTP for password reset is: ${otp}. It is valid for 10 minutes.`
+            });
+        }catch(mailErr){
+            console.log("Doctor OTP mail error:", mailErr.message);
+            await otps.deleteOne({email:email,role:role});
+            return res.status(502).json({success:false,msg:"could not send OTP email, please try again later"});
+        }
+        return res.status(200).json({success:true,msg:"OTP sent to email"});
     }
     catch(err){
-        console.log(err);
-        res.status(500).json({msg:"internal server error"});
+        console.log("Doctor OTP generate error:", err);
+        return res.status(500).json({success:false,msg:"could not generate OTP, please try again"});
     }
 }
 
 exports.otpverify=async(req,res)=>
 {
+    const role="doctor";
+    const email=(req.body.email||"").trim();
+    const otp=String(req.body.otp||"").trim();
+    if(!email || !otp){
+        return res.status(400).json({success:false,msg:"email and OTP are required"});
+    }
     try
     {
-    let email=req.body.email;
-    let otp=req.body.otp;
-    let role=req.body.role;
-    let record=await otps.findOne({email:email,otp:otp,role:role});
-    if(!record)
-    {
-        return res.status(400).json({success: false,msg:"invalid OTP"});
-    }
+        let record=await otps.findOne({email:email,otp:otp,role:role});
+        if(!record){
+            return res.status(400).json({success:false,msg:"invalid or expired OTP"});
+        }
+        let doctor=await rec.findOne({email:email});
+        if(!doctor){
+            return res.status(404).json({success:false,msg:"no doctor account found with this email"});
+        }
+        const oldHash=doctor.password;
         let password=crypto.randomBytes(4).toString("hex");
         let hp=await bct.hash(password,10);
-        await rec.findOneAndUpdate({email:email},{password:hp});
+        await rec.updateOne({_id:doctor._id},{password:hp});
+        try{
+            await transporter.sendMail({
+                from: process.env.EMAIL,
+                to: email,
+                subject: "New Password After OTP Verification",
+                text: `Hi Dr. ${doctor.name || ""}, your OTP has been verified successfully. Your new password is: ${password}. Please change it after logging in.`
+            });
+        }catch(mailErr){
 
-        const mail = {
-            from: process.env.EMAIL,
-            to: email,
-            subject: "New Password After OTP Verification",
-            text: `hi Dr. ${email}, Your OTP has been verified successfully. Your new password is: ${password}. Please change it after logging in.`
-        };
-        await transporter.sendMail(mail);
-
-        await otps.deleteOne({email:email,otp:otp,role:role});
-
-        return res.status(200).json({success: true,msg:"OTP verified successfully and new password sent to email"});
+            console.log("Doctor new-password mail error:", mailErr.message);
+            await rec.updateOne({_id:doctor._id},{password:oldHash});
+            return res.status(502).json({success:false,msg:"could not send new password email, please try again"});
+        }
+        await otps.deleteOne({_id:record._id});
+        return res.status(200).json({success:true,msg:"OTP verified successfully and new password sent to email"});
     }
     catch(err)
     {
-        console.log(err);
-        res.status(500).json({msg:"internal server error"});
+        console.log("Doctor OTP verify error:", err);
+        return res.status(500).json({success:false,msg:"could not verify OTP, please try again"});
     }
-}    
+}
 
 exports.deletedoctor = async (req, res) => {
     try {
@@ -436,7 +456,7 @@ exports.deletedoctor = async (req, res) => {
 
 exports.blockdoctor = async (req, res) => {
     try {
-        
+
         const id = req.body.id;
         console.log(id);
         const doctor = await rec.findById(id);

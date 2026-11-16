@@ -67,7 +67,7 @@ async function initChatSocket(server) {
             socket.join(roomId(userId, doctorId));
         });
 
-        
+
         socket.on("sendMessage", async ({ userId, doctorId, text }) => {
             try {
                 if (!userId || !doctorId || !text || !text.trim()) return;

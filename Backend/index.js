@@ -29,7 +29,13 @@ app.use(compression({
     return compression.filter(req, res);
   },
 }));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({
+  limit: '10mb',
+
+  verify: (req, res, buf) => {
+    if (req.originalUrl.startsWith("/razorpay/webhook")) req.rawBody = buf;
+  },
+}));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
@@ -58,6 +64,11 @@ app.use("/", require("./router/skinanalysis"));
 app.use("/", require("./router/triagerouter"));
 app.use("/", require("./router/hospitalrouter"));
 app.use("/", require("./router/emergencyrouter"));
+app.use("/", require("./router/reminderrouter"));
+app.use("/", require("./router/creditrouter"));
+
+let { startReminderScheduler } = require("./helper/reminderhelper");
+let stopReminderScheduler = null;
 
 const PORT = process.env.PORT || 5000;
 
@@ -78,6 +89,7 @@ async function shutdown(signal) {
   forceExit.unref();
 
   io?.close();
+  stopReminderScheduler?.();
   server.close(async () => {
     console.log("HTTP server closed");
     try {
@@ -111,5 +123,6 @@ process.on("SIGINT", () => shutdown("SIGINT"));
 
   server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
+    stopReminderScheduler = startReminderScheduler();
   });
 })();

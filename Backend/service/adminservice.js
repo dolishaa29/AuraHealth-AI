@@ -3,7 +3,7 @@ let jwt=require("jsonwebtoken");
 let bct=require("bcryptjs");
 
 exports.adminregister=async(req,res)=>
-{    
+{
 let email=req.body.email;
 let password=req.body.password;
 let contact=req.body.contact;
@@ -12,13 +12,13 @@ let data=await rec.find();
 if(data.length==0){
 let record=new rec({email:email,password:hp,contact:contact});
 await record.save();
-return res.status(201).json({success: true,msg:'admin registered successfully'}) 
+return res.status(201).json({success: true,msg:'admin registered successfully'})
 }
 else
 {
-return res.status(201).json({success: true,msg:'admin already registered'}) 
+return res.status(201).json({success: true,msg:'admin already registered'})
 }
-}  
+}
 
 exports.adminlogin=async(req,res)=>
 {
@@ -33,14 +33,14 @@ return res.status(404).json({success: false,msg:'admin not found'})
 }
 lpass=data.password;
 console.log(lpass);
-pass=await bct.compare(password,lpass); 
+pass=await bct.compare(password,lpass);
 if(pass)
 {
 let token=jwt.sign({token:data.email},process.env.JWT_SECRET,{
 expiresIn:"1d"
 });
 console.log("send token"+token);
-return res.status(200).json({success: true,msg:'admin login successfully',token})                                            
+return res.status(200).json({success: true,msg:'admin login successfully',token})
 }
 else
 {
