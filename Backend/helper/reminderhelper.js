@@ -148,15 +148,23 @@ async function sendReminderEmail(reminder,time)
     }
     text=text+"\n\nStay healthy,\nAuraHealth";
 
-    let details=[{label:"Medicine",value:reminder.medicine}];
+    let tiles=[
+        {icon:"💊",label:"Medicine",value:reminder.medicine,color:"indigo"},
+        {icon:"⏰",label:"Time",value:time,color:"orange"}
+    ];
     if(reminder.dosage)
     {
-        details.push({label:"Dosage",value:reminder.dosage});
+        tiles.push({icon:"📏",label:"Dosage",value:reminder.dosage,color:"green"});
     }
-    details.push({label:"Time",value:time});
+
+    let details=[];
     if(reminder.notes)
     {
         details.push({label:"Note",value:reminder.notes});
+    }
+    if(reminder.endDate)
+    {
+        details.push({label:"Course ends on",value:reminder.endDate});
     }
 
     const mail = {
@@ -165,13 +173,20 @@ async function sendReminderEmail(reminder,time)
         subject: "Time for your "+reminder.medicine+" 💊",
         text: text,
         html: emailTemplate({
-            title:"Time for your medicine 💊",
+            label:"Medicine reminder",
+            badge:"⏰ Due now · "+time,
+            icon:"💊",
+            title:"Time for your "+reminder.medicine,
+            subtitle:"A small step for a healthier you.",
+            preview:"It's "+time+" — time to take "+reminder.medicine,
             name:user.name,
-            message:"It's "+time+". This is your reminder to take your medicine.",
+            message:"This is your scheduled reminder. Take your medicine now, then mark it as taken so your weekly progress stays up to date.",
+            tiles:tiles,
+            detailsTitle:details.length>0 ? "Details" : null,
             details:details,
             buttonText:"Mark as taken",
             buttonLink:process.env.FRONTEND_URL ? process.env.FRONTEND_URL+"/reminders" : null,
-            note:"You're getting this because you turned on email alerts for this reminder. You can turn them off on the Reminders page."
+            alert:{type:"info",text:"You're getting this because email alerts are on for this reminder. You can turn them off anytime on the Reminders page."}
         })
     };
     await transporter.sendMail(mail);

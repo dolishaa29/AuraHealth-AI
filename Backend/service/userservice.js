@@ -7,7 +7,7 @@ let jwt=require("jsonwebtoken");
 let crypto=require("crypto");
 const nodemailer = require("nodemailer");
 const cloudinary=require("../config/cloudinary");
-let {emailTemplate}=require("../helper/emailtemplate");
+let {emailTemplate,indiaTime}=require("../helper/emailtemplate");
 
 
 const transporter = nodemailer.createTransport({
@@ -47,12 +47,23 @@ exports.userregister=async(req,res)=>
         subject: "Email Verification OTP",
         text: `Your OTP to complete registration is: ${otp}. It is valid for 10 minutes.`,
         html: emailTemplate({
+            label:"Account setup",
+            badge:"✨ Welcome to AuraHealth",
+            icon:"✉️",
             title:"Verify your email",
+            subtitle:"One quick step and your account is ready.",
+            preview:"Your AuraHealth verification code is "+otp,
             name:name,
-            message:"Welcome to AuraHealth! Use the code below to finish creating your account.",
+            message:"Thanks for signing up! Enter the code below on the sign-up page to verify your email and activate your account.",
             code:otp,
             codeLabel:"Verification code",
-            note:"This code is valid for 10 minutes. If you didn't sign up for AuraHealth, you can ignore this email."
+            codeExpiry:"Expires in 10 minutes",
+            tiles:[
+                {icon:"🩺",label:"Consult",value:"Top doctors",color:"indigo"},
+                {icon:"🤖",label:"AI tools",value:"Health insights",color:"green"},
+                {icon:"💊",label:"Reminders",value:"Never miss a dose",color:"orange"}
+            ],
+            alert:{type:"info",title:"Didn't sign up?",text:"If you didn't create an AuraHealth account, you can safely ignore this email. Never share this code with anyone."}
         })
     };
     await transporter.sendMail(mail);
@@ -221,12 +232,23 @@ exports.otpgenerate=async(req,res)=>{
                 subject: "Password Reset OTP",
                 text: `Hi ${user.name || ""}, your OTP for password reset is: ${otp}. It is valid for 10 minutes.`,
                 html: emailTemplate({
+                    label:"Account security",
+                    badge:"🔐 Account security",
+                    icon:"🔐",
                     title:"Reset your password",
+                    subtitle:"Use this code to confirm it's really you.",
+                    preview:"Your AuraHealth password reset code is "+otp,
                     name:user.name,
-                    message:"We got a request to reset your password. Enter this code to continue.",
+                    message:"We received a request to reset the password for your AuraHealth account. Enter the code below to continue.",
                     code:otp,
                     codeLabel:"Reset code",
-                    note:"This code is valid for 10 minutes. If you didn't ask to reset your password, you can ignore this email. Your account is safe."
+                    codeExpiry:"Expires in 10 minutes",
+                    detailsTitle:"Request details",
+                    details:[
+                        {label:"Account",value:email},
+                        {label:"Requested on",value:indiaTime()}
+                    ],
+                    alert:{type:"warning",title:"Wasn't you?",text:"Ignore this email and your password will stay the same. AuraHealth will never ask you for this code."}
                 })
             });
         }catch(mailErr){
@@ -271,14 +293,24 @@ exports.otpverify=async(req,res)=>
                 subject: "New Password After OTP Verification",
                 text: `Hi ${user.name || ""}, your OTP has been verified successfully. Your new password is: ${password}. Please change it after logging in.`,
                 html: emailTemplate({
-                    title:"Your new password",
+                    label:"Account security",
+                    badge:"✅ Code verified",
+                    icon:"🔑",
+                    title:"Your new password is ready",
+                    subtitle:"You can log in to your account again.",
+                    preview:"Your AuraHealth password has been reset",
                     name:user.name,
-                    message:"Your code was verified. Here is your new password. Use it to log in.",
+                    message:"Your reset code was verified. We've created a new password for your account. Use it to log in.",
                     code:password,
                     codeLabel:"New password",
                     buttonText:"Log in to AuraHealth",
                     buttonLink:process.env.FRONTEND_URL ? process.env.FRONTEND_URL+"/login" : null,
-                    note:"For your safety, please change this password after you log in."
+                    stepsTitle:"Keep your account safe",
+                    steps:[
+                        {title:"Log in with this password",text:"Copy it exactly as shown above."},
+                        {title:"Change it right away",text:"Go to your profile and set a password only you know."}
+                    ],
+                    alert:{type:"danger",title:"Didn't request this?",text:"Someone may be trying to access your account. Log in and change your password immediately."}
                 })
             });
         }catch(mailErr){

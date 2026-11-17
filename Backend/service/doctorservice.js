@@ -8,7 +8,7 @@ let crypto=require("crypto");
 const nodemailer = require("nodemailer");
 const cloudinary=require("../config/cloudinary")
 const axios = require("axios");
-let {emailTemplate}=require("../helper/emailtemplate");
+let {emailTemplate,indiaTime}=require("../helper/emailtemplate");
 
 async function geocodeAddress(address) {
     try {
@@ -133,17 +133,32 @@ exports.doctorregister = async (req, res) => {
       Email: ${email}
       Password: ${password}`,
       html: emailTemplate({
-        title:"Welcome to AuraHealth, Doctor!",
+        label:"Doctor onboarding",
+        badge:"🎉 Application approved",
+        icon:"🩺",
+        title:"Welcome aboard, Dr. "+name+"!",
+        subtitle:"Your doctor account is approved and ready to use.",
+        preview:"Your AuraHealth doctor account is approved",
         name:"Dr. "+name,
-        message:"Your application has been approved and your doctor account is ready. Here are your login details.",
+        message:"Great news! Our team has reviewed your application and certificate. Your account is now live, and patients can find and book you on AuraHealth.",
+        tiles:[
+          {icon:"✅",label:"Status",value:"Approved",color:"green"},
+          {icon:"🩺",label:"Specialization",value:specialization || "Doctor",color:"indigo"}
+        ],
+        detailsTitle:"Your login details",
         details:[
           {label:"Email",value:email},
-          {label:"Password",value:password},
-          {label:"Specialization",value:specialization}
+          {label:"Password",value:password}
         ],
-        buttonText:"Log in to your dashboard",
+        stepsTitle:"Get started in 3 steps",
+        steps:[
+          {title:"Log in to your dashboard",text:"Use the email and password above. Choose \"Doctor\" on the login page."},
+          {title:"Change your password",text:"Set a new password only you know."},
+          {title:"Complete your profile",text:"Add your photo and details so patients can trust and book you."}
+        ],
+        buttonText:"Open doctor dashboard",
         buttonLink:process.env.FRONTEND_URL ? process.env.FRONTEND_URL+"/login" : null,
-        note:"For your safety, please change your password after you log in for the first time."
+        alert:{type:"warning",title:"Keep these details private",text:"Don't share your password with anyone, including AuraHealth staff."}
       })
     };
 
@@ -386,12 +401,23 @@ exports.otpgenerate=async(req,res)=>{
                 subject: "Password Reset OTP",
                 text: `Hi Dr. ${doctor.name || ""}, your OTP for password reset is: ${otp}. It is valid for 10 minutes.`,
                 html: emailTemplate({
+                    label:"Account security",
+                    badge:"🔐 Account security",
+                    icon:"🔐",
                     title:"Reset your password",
+                    subtitle:"Use this code to confirm it's really you.",
+                    preview:"Your AuraHealth password reset code is "+otp,
                     name:"Dr. "+(doctor.name || ""),
-                    message:"We got a request to reset your password. Enter this code to continue.",
+                    message:"We received a request to reset the password for your AuraHealth doctor account. Enter the code below to continue.",
                     code:otp,
                     codeLabel:"Reset code",
-                    note:"This code is valid for 10 minutes. If you didn't ask to reset your password, you can ignore this email. Your account is safe."
+                    codeExpiry:"Expires in 10 minutes",
+                    detailsTitle:"Request details",
+                    details:[
+                        {label:"Account",value:email},
+                        {label:"Requested on",value:indiaTime()}
+                    ],
+                    alert:{type:"warning",title:"Wasn't you?",text:"Ignore this email and your password will stay the same. AuraHealth will never ask you for this code."}
                 })
             });
         }catch(mailErr){
@@ -436,14 +462,24 @@ exports.otpverify=async(req,res)=>
                 subject: "New Password After OTP Verification",
                 text: `Hi Dr. ${doctor.name || ""}, your OTP has been verified successfully. Your new password is: ${password}. Please change it after logging in.`,
                 html: emailTemplate({
-                    title:"Your new password",
+                    label:"Account security",
+                    badge:"✅ Code verified",
+                    icon:"🔑",
+                    title:"Your new password is ready",
+                    subtitle:"You can log in to your doctor account again.",
+                    preview:"Your AuraHealth password has been reset",
                     name:"Dr. "+(doctor.name || ""),
-                    message:"Your code was verified. Here is your new password. Use it to log in.",
+                    message:"Your reset code was verified. We've created a new password for your account. Use it to log in.",
                     code:password,
                     codeLabel:"New password",
                     buttonText:"Log in to AuraHealth",
                     buttonLink:process.env.FRONTEND_URL ? process.env.FRONTEND_URL+"/login" : null,
-                    note:"For your safety, please change this password after you log in."
+                    stepsTitle:"Keep your account safe",
+                    steps:[
+                        {title:"Log in with this password",text:"Copy it exactly as shown above."},
+                        {title:"Change it right away",text:"Go to your profile and set a password only you know."}
+                    ],
+                    alert:{type:"danger",title:"Didn't request this?",text:"Someone may be trying to access your account. Log in and change your password immediately."}
                 })
             });
         }catch(mailErr){
