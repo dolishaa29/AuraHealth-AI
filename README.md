@@ -161,3 +161,7 @@ Health check: `GET /healthz` returns the server and database status.
 - [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md) — what each file does
 - [docs/uml.md](docs/uml.md) — UML diagrams (use case, sequence, class and more)
 - [docs/INTERVIEW_PREP.md](docs/INTERVIEW_PREP.md) — why each technology was chosen
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
