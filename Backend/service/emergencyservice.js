@@ -29,6 +29,7 @@ function cleanPhone(phone) {
   return null;
 }
 
+
 function getContactList(user) {
   if (user.emergencyContacts && user.emergencyContacts.length > 0) {
     const list = [];
@@ -66,6 +67,7 @@ exports.getEmergencyContacts = async (req, res) => {
     contacts: getContactList(user),
   });
 };
+
 
 exports.saveEmergencyContacts = async (req, res) => {
   const user = req.user;
