@@ -8,6 +8,7 @@ let crypto=require("crypto");
 const nodemailer = require("nodemailer");
 const cloudinary=require("../config/cloudinary");
 
+
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -16,6 +17,7 @@ const transporter = nodemailer.createTransport({
   },
 
 });
+
 exports.userregister=async(req,res)=>
 {
     try{
@@ -55,6 +57,8 @@ exports.userregister=async(req,res)=>
     }
 }
 
+
+
 exports.registerotpverify=async(req,res)=>
 {
     try{
@@ -82,6 +86,8 @@ exports.registerotpverify=async(req,res)=>
         res.status(500).json({msg:"internal server error"});
     }
 }
+
+
 
 exports.userlogin=async(req,res)=>
 {
@@ -119,17 +125,22 @@ catch(err)
 }
 }
 
+
+
 exports.userlogout=async(req,res)=>
 {
     res.clearCookie("token");
     return res.status(200).json({success: true,msg:'user logout successfully'})
 }
 
+
 exports.userprofile=async(req,res)=>
 {
     const user = req.user;
     return res.status(200).json({success: true,user})
 }
+
+
 
 exports.userlist=async(req,res)=>
 {

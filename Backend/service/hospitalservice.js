@@ -51,6 +51,9 @@ exports.nearbyHospitals = async (req, res) => {
   });
 };
 
+
+
+
 exports.route = async (req, res) => {
   const fromLat = parseFloat(req.query.fromLat);
   const fromLng = parseFloat(req.query.fromLng);
