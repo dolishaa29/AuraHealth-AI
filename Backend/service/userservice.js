@@ -7,6 +7,7 @@ let jwt=require("jsonwebtoken");
 let crypto=require("crypto");
 const nodemailer = require("nodemailer");
 const cloudinary=require("../config/cloudinary");
+let {emailTemplate}=require("../helper/emailtemplate");
 
 
 const transporter = nodemailer.createTransport({
@@ -44,7 +45,15 @@ exports.userregister=async(req,res)=>
         from: process.env.EMAIL,
         to: email,
         subject: "Email Verification OTP",
-        text: `Your OTP to complete registration is: ${otp}. It is valid for 10 minutes.`
+        text: `Your OTP to complete registration is: ${otp}. It is valid for 10 minutes.`,
+        html: emailTemplate({
+            title:"Verify your email",
+            name:name,
+            message:"Welcome to AuraHealth! Use the code below to finish creating your account.",
+            code:otp,
+            codeLabel:"Verification code",
+            note:"This code is valid for 10 minutes. If you didn't sign up for AuraHealth, you can ignore this email."
+        })
     };
     await transporter.sendMail(mail);
 
@@ -210,7 +219,15 @@ exports.otpgenerate=async(req,res)=>{
                 from: process.env.EMAIL,
                 to: email,
                 subject: "Password Reset OTP",
-                text: `Hi ${user.name || ""}, your OTP for password reset is: ${otp}. It is valid for 10 minutes.`
+                text: `Hi ${user.name || ""}, your OTP for password reset is: ${otp}. It is valid for 10 minutes.`,
+                html: emailTemplate({
+                    title:"Reset your password",
+                    name:user.name,
+                    message:"We got a request to reset your password. Enter this code to continue.",
+                    code:otp,
+                    codeLabel:"Reset code",
+                    note:"This code is valid for 10 minutes. If you didn't ask to reset your password, you can ignore this email. Your account is safe."
+                })
             });
         }catch(mailErr){
             console.log("User OTP mail error:", mailErr.message);
@@ -252,7 +269,17 @@ exports.otpverify=async(req,res)=>
                 from: process.env.EMAIL,
                 to: email,
                 subject: "New Password After OTP Verification",
-                text: `Hi ${user.name || ""}, your OTP has been verified successfully. Your new password is: ${password}. Please change it after logging in.`
+                text: `Hi ${user.name || ""}, your OTP has been verified successfully. Your new password is: ${password}. Please change it after logging in.`,
+                html: emailTemplate({
+                    title:"Your new password",
+                    name:user.name,
+                    message:"Your code was verified. Here is your new password. Use it to log in.",
+                    code:password,
+                    codeLabel:"New password",
+                    buttonText:"Log in to AuraHealth",
+                    buttonLink:process.env.FRONTEND_URL ? process.env.FRONTEND_URL+"/login" : null,
+                    note:"For your safety, please change this password after you log in."
+                })
             });
         }catch(mailErr){
 

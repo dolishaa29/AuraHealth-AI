@@ -1,6 +1,7 @@
 let nodemailer=require("nodemailer");
 let Reminder=require("../model/reminder");
 let DoseLog=require("../model/doseLog");
+let {emailTemplate}=require("./emailtemplate");
 
 
 const transporter = nodemailer.createTransport({
@@ -147,11 +148,31 @@ async function sendReminderEmail(reminder,time)
     }
     text=text+"\n\nStay healthy,\nAuraHealth";
 
+    let details=[{label:"Medicine",value:reminder.medicine}];
+    if(reminder.dosage)
+    {
+        details.push({label:"Dosage",value:reminder.dosage});
+    }
+    details.push({label:"Time",value:time});
+    if(reminder.notes)
+    {
+        details.push({label:"Note",value:reminder.notes});
+    }
+
     const mail = {
         from: process.env.EMAIL,
         to: user.email,
         subject: "Time for your "+reminder.medicine+" 💊",
-        text: text
+        text: text,
+        html: emailTemplate({
+            title:"Time for your medicine 💊",
+            name:user.name,
+            message:"It's "+time+". This is your reminder to take your medicine.",
+            details:details,
+            buttonText:"Mark as taken",
+            buttonLink:process.env.FRONTEND_URL ? process.env.FRONTEND_URL+"/reminders" : null,
+            note:"You're getting this because you turned on email alerts for this reminder. You can turn them off on the Reminders page."
+        })
     };
     await transporter.sendMail(mail);
 }

@@ -8,6 +8,7 @@ let crypto=require("crypto");
 const nodemailer = require("nodemailer");
 const cloudinary=require("../config/cloudinary")
 const axios = require("axios");
+let {emailTemplate}=require("../helper/emailtemplate");
 
 async function geocodeAddress(address) {
     try {
@@ -130,7 +131,20 @@ exports.doctorregister = async (req, res) => {
       text: `Hello Dr. ${name}, your account has been successfully registered and approved.
       Your login credentials are as follows:
       Email: ${email}
-      Password: ${password}`
+      Password: ${password}`,
+      html: emailTemplate({
+        title:"Welcome to AuraHealth, Doctor!",
+        name:"Dr. "+name,
+        message:"Your application has been approved and your doctor account is ready. Here are your login details.",
+        details:[
+          {label:"Email",value:email},
+          {label:"Password",value:password},
+          {label:"Specialization",value:specialization}
+        ],
+        buttonText:"Log in to your dashboard",
+        buttonLink:process.env.FRONTEND_URL ? process.env.FRONTEND_URL+"/login" : null,
+        note:"For your safety, please change your password after you log in for the first time."
+      })
     };
 
     try {
@@ -370,7 +384,15 @@ exports.otpgenerate=async(req,res)=>{
                 from: process.env.EMAIL,
                 to: email,
                 subject: "Password Reset OTP",
-                text: `Hi Dr. ${doctor.name || ""}, your OTP for password reset is: ${otp}. It is valid for 10 minutes.`
+                text: `Hi Dr. ${doctor.name || ""}, your OTP for password reset is: ${otp}. It is valid for 10 minutes.`,
+                html: emailTemplate({
+                    title:"Reset your password",
+                    name:"Dr. "+(doctor.name || ""),
+                    message:"We got a request to reset your password. Enter this code to continue.",
+                    code:otp,
+                    codeLabel:"Reset code",
+                    note:"This code is valid for 10 minutes. If you didn't ask to reset your password, you can ignore this email. Your account is safe."
+                })
             });
         }catch(mailErr){
             console.log("Doctor OTP mail error:", mailErr.message);
@@ -412,7 +434,17 @@ exports.otpverify=async(req,res)=>
                 from: process.env.EMAIL,
                 to: email,
                 subject: "New Password After OTP Verification",
-                text: `Hi Dr. ${doctor.name || ""}, your OTP has been verified successfully. Your new password is: ${password}. Please change it after logging in.`
+                text: `Hi Dr. ${doctor.name || ""}, your OTP has been verified successfully. Your new password is: ${password}. Please change it after logging in.`,
+                html: emailTemplate({
+                    title:"Your new password",
+                    name:"Dr. "+(doctor.name || ""),
+                    message:"Your code was verified. Here is your new password. Use it to log in.",
+                    code:password,
+                    codeLabel:"New password",
+                    buttonText:"Log in to AuraHealth",
+                    buttonLink:process.env.FRONTEND_URL ? process.env.FRONTEND_URL+"/login" : null,
+                    note:"For your safety, please change this password after you log in."
+                })
             });
         }catch(mailErr){
 
