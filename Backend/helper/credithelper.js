@@ -14,7 +14,7 @@ const CREDIT_COSTS = {
 const LIVE_SESSION_MINUTES = 10;
 
 const CREDIT_PACKS = [
-  { id: "starter", name: "Starter", credits: 100, price: 99 },
+  { id: "starter", name: "Starter", credits: 100, price: 10 },
   { id: "plus", name: "Plus", credits: 300, price: 249, tag: "Popular" },
   { id: "pro", name: "Pro", credits: 1000, price: 699, tag: "Best value" },
 ];

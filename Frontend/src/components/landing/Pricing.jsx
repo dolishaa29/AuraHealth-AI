@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Check, Sparkles } from 'lucide-react';
 
 const PACKS = [
-  { name: 'Starter', credits: 100, price: 99, card: 'bg-[#E7F7EF]', name_: 'text-[#05603A]', big: 'text-[#054F31]', btn: 'bg-white text-[#054F31]' },
+  { name: 'Starter', credits: 100, price: 10, card: 'bg-[#E7F7EF]', name_: 'text-[#05603A]', big: 'text-[#054F31]', btn: 'bg-white text-[#054F31]' },
   { name: 'Plus', credits: 300, price: 249, tag: 'Most loved', card: 'bg-white shadow-[0_0_0_2px_#4F46E5,0_20px_40px_rgba(79,70,229,0.15)]', name_: 'text-[#3730A3]', big: 'text-[#312E81]', btn: 'bg-indigo-600 text-white hover:bg-indigo-700' },
   { name: 'Pro', credits: 1000, price: 699, card: 'bg-[#FFF0E6]', name_: 'text-[#9A3412]', big: 'text-[#7C2D12]', btn: 'bg-white text-[#7C2D12]' },
 ];
