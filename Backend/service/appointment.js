@@ -2,52 +2,16 @@ let rec4=require("../model/Appointment/appointrequest");
 let rec5=require("../model/Appointment/appointment");
 let rec=require("../model/doctor");
 const Report = require("../model/report");
-const { isValidObjectId } = require("mongoose");
+const { connection, isValidObjectId } = require("mongoose");
+const Payment = require("../model/payment");
+const { DOCTOR_FEE_PAISE } = require("../config/consultationPricing");
 const DoseLog = require("../model/doseLog");
 const { addDays, isValidDate, isValidTime, localDateTime } = require("../helper/reminderhelper");
-const { CREDIT_COSTS, spendCredits, addCredits, notEnoughCreditsMsg } = require("../helper/credithelper");
-exports.appointrequest=async(req,res)=>
-{
- console.log("Appointment request received");
- let user=req.user;
- let doctorid=req.body.doctorid;
- let description=req.body.description;
- let data=await rec.findOne({_id:doctorid});
- if(!data)
- {
-    return res.status(404).json({success: false,msg:'Doctor not found'});
- }
+const { CREDIT_COSTS } = require("../helper/credithelper");
 
- if(!description || !String(description).trim())
- {
-    return res.status(400).json({success: false,msg:'Please describe your reason for visit'});
- }
-
-
- const cost = CREDIT_COSTS.appointmentRequest;
- const balance = await spendCredits(user._id, cost, 'Appointment request to Dr. ' + (data.name || ''));
- if(balance === null)
- {
-    return res.status(402).json({success: false,msg:notEnoughCreditsMsg(cost, 'Requesting an appointment')});
- }
-
- let appointment=new rec4({
-    userid:user._id,
-    name:user.name,
-    email:user.email,
-    doctorid:doctorid,
-    doctormail:data.email,
-    description:description,
- });
-
- try {
-    await appointment.save();
- } catch (err) {
-    await addCredits(user._id, cost, 'Refund: appointment request failed');
-    throw err;
- }
-    return res.status(201).json({success: true,msg:'appointment request sent successfully',credits:balance});
-}
+exports.appointrequest = (req, res) => res.status(410).json({
+  success: false, msg: "Choose a time on Book a slot to schedule a consultation.",
+});
 
 exports.viewappointment=async(req,res)=>
 {
@@ -81,13 +45,12 @@ exports.viewappointment=async(req,res)=>
 
 exports.appointmentstatus=async(req,res)=>
 {
-    let id=req.body.id;
-    let status=req.body.status;
-    if(!["pending","approved","rejected"].includes(status))
+    const { id, status } = req.body || {};
+    if(!isValidObjectId(id) || status !== "rejected")
     {
         return res.status(400).json({success: false,msg:'Invalid status'});
     }
-    let appointment=await rec4.findByIdAndUpdate({_id:id},{status:status});
+    let appointment=await rec4.findOneAndUpdate({_id:id,status:"pending"},{status:status});
     if(appointment)
     {
         return res.status(200).json({success: true,msg:'appointment status updated successfully'});
@@ -98,24 +61,28 @@ exports.appointmentstatus=async(req,res)=>
     }
 }
 
-exports.approveappointment=async(req,res)=>
-{
-      let appointment=req.body;
-      let rec=new rec5({
-        userid:appointment.userid,
-        name:appointment.name,
-        email:appointment.email,
-        doctorid:appointment.doctorid,
-        doctormail:appointment.doctormail,
-        description:appointment.description,
-        date:appointment.date,
-        time:appointment.time
-      });
-
-      await rec.save();
-      return res.status(201).json({success: true,msg:'appointment approved successfully'});
-
-}
+exports.approveappointment = async (req, res) => {
+  const { id, date, time } = req.body || {};
+  if (!isValidObjectId(id) || !isValidDate(date) || !isValidTime(time)
+    || Date.parse(`${date}T${time}:00+05:30`) <= Date.now()) {
+    return res.status(400).json({ success: false, msg: "Choose a pending request and a future date and time." });
+  }
+  try {
+    const approved = await connection.transaction(async (session) => {
+      const request = await rec4.findOneAndUpdate({ _id: id, status: "pending" }, { $set: { status: "approved" } }, { session });
+      if (!request) return false;
+      const { userid, name, email, doctorid, doctormail, description } = request;
+      const appointment = new rec5({ userid, name, email, doctorid, doctormail, description, date, time });
+      await appointment.save({ session });
+      return true;
+    });
+    if (!approved) return res.status(409).json({ success: false, msg: "This request is no longer pending." });
+    return res.status(201).json({ success: true, msg: "Appointment approved." });
+  } catch (err) {
+    if (err.code === 11000) return res.status(409).json({ success: false, msg: "This slot is no longer available." });
+    throw err;
+  }
+};
 
 function generateTimeSlots(bookedTimes) {
   const allTimes = [
@@ -148,6 +115,7 @@ exports.getAvailableSlots = async (req, res) => {
     return res.status(200).json({
       success: true,
       slots: [],
+      bookingCost: CREDIT_COSTS.slotBooking,
       hasAppointmentToday: true,
       msg: 'You already have an appointment on this date'
     });
@@ -157,7 +125,7 @@ exports.getAvailableSlots = async (req, res) => {
   const bookedTimes = booked.map(a => a.time);
   const slots = generateTimeSlots(bookedTimes);
 
-  return res.status(200).json({ success: true, slots, hasAppointmentToday: false });
+  return res.status(200).json({ success: true, slots, bookingCost: CREDIT_COSTS.slotBooking, hasAppointmentToday: false });
 };
 
 exports.bookSlot = async (req, res) => {
@@ -181,46 +149,33 @@ exports.bookSlot = async (req, res) => {
     return res.status(403).json({ success: false, msg: "This doctor is unavailable for booking." });
   }
 
-  const existingUserApp = await rec5.findOne({ userid: user._id.toString(), date });
-  if (existingUserApp) {
-    return res.status(400).json({ success: false, msg: 'You already have an appointment on this date. Only one appointment per day is allowed.' });
-  }
-
-  const slotTaken = await rec5.findOne({ doctorid, date, time });
-  if (slotTaken) {
-    return res.status(400).json({ success: false, msg: 'This slot was just taken. Please choose another.' });
-  }
-
-
   const cost = CREDIT_COSTS.slotBooking;
-  const balance = await spendCredits(user._id, cost, 'Appointment with Dr. ' + (doctor.name || '') + ' on ' + date + ' ' + time);
-  if (balance === null) {
-    return res.status(402).json({ success: false, msg: notEnoughCreditsMsg(cost, 'Booking a slot') });
-  }
-
-  const appointment = new rec5({
-    userid: user._id,
-    name: user.name,
-    email: user.email,
-    doctorid,
-    doctormail: doctor.email,
-    description,
-    payoutFeePaise: doctor.payoutFeePaise || 0,
-    date,
-    time
-  });
-
   try {
-    await appointment.save();
+    const result = await connection.transaction(async (session) => {
+      const existing = await rec5.exists({ userid: String(user._id), date }).session(session);
+      if (existing) return { status: 409, msg: "You already have an appointment on this date." };
+      const taken = await rec5.exists({ doctorid, date, time }).session(session);
+      if (taken) return { status: 409, msg: "This slot was just taken. Please choose another." };
+      const backing = await Payment.findOneAndUpdate({
+        user: user._id, status: "paid", liveFunding: true, fundingBlocked: { $ne: true },
+        bookingCreditsRemaining: { $gte: cost }, maxDoctorFeePaise: { $gte: DOCTOR_FEE_PAISE },
+      }, { $inc: { bookingCreditsRemaining: -cost } }, { sort: { createdAt: 1, _id: 1 }, session });
+      if (!backing) return { status: 402, msg: `Booking requires ${cost} consultation credits from a verified live purchase.` };
+      const appointment = new rec5({
+        userid: String(user._id), name: user.name, email: user.email,
+        doctorid, doctormail: doctor.email, description: description.trim(), date, time,
+        payoutFeePaise: DOCTOR_FEE_PAISE, payoutFundingPayment: backing._id,
+      });
+      await appointment.save({ session });
+      return { status: 201, msg: "Appointment booked successfully!" };
+    });
+    return res.status(result.status).json({ success: result.status === 201, msg: result.msg });
   } catch (err) {
-    await addCredits(user._id, cost, 'Refund: booking failed');
     if (err.code === 11000) {
-      return res.status(400).json({ success: false, msg: 'This slot was just taken. Please choose another. Your credits were refunded.' });
+      return res.status(409).json({ success: false, msg: "The slot or date is no longer available. No consultation credits were used." });
     }
     throw err;
   }
-
-  return res.status(201).json({ success: true, msg: 'Appointment booked successfully!', credits: balance });
 };
 
 exports.updateBriefingSharing = async (req, res) => {

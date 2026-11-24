@@ -188,7 +188,7 @@ const Login = () => {
                 <button type="button" onClick={() => navigate(role === 'doctor' ? '/Doctorregister' : '/Userregister')} className="font-extrabold text-indigo-600 hover:text-indigo-700">
                   Create an account
                 </button>
-                {role === 'user' && ' and get 100 free credits'}
+                {role === 'user' && ' and get 30 free AI credits'}
               </p>
             )}
           </form>

@@ -3,7 +3,7 @@ import { UserPlus, CalendarSearch, Video, FileCheck2 } from 'lucide-react';
 import Reveal from './Reveal';
 
 const STEPS = [
-  { icon: UserPlus, title: 'Create your account', description: 'Sign up in under a minute and get 100 free credits. No paperwork.', tint: 'bg-[#EEEDFF] text-indigo-600', card: 'bg-white' },
+  { icon: UserPlus, title: 'Create your account', description: 'Sign up in under a minute and get 30 free AI credits. No paperwork.', tint: 'bg-[#EEEDFF] text-indigo-600', card: 'bg-white' },
   { icon: CalendarSearch, title: 'Find & book a slot', description: 'Browse verified doctors and grab a real-time slot that fits your day.', tint: 'bg-white text-[#9A3412]', card: 'bg-[#FFF0E6]' },
   { icon: Video, title: 'Meet by video', description: 'See your doctor face to face from home. The call opens 10 minutes before your slot.', tint: 'bg-white text-[#1E40AF]', card: 'bg-[#E6F1FF]' },
   { icon: FileCheck2, title: 'Follow up with ease', description: 'Reports, messages and medicine reminders stay together, ready whenever you need them.', tint: 'bg-white text-[#05603A]', card: 'bg-[#E7F7EF]' },

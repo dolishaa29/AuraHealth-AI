@@ -3,7 +3,7 @@ import { Plus, MessageCircle } from 'lucide-react';
 import Reveal from './Reveal';
 
 const FAQS = [
-  { q: 'Is AuraHealth free to use?', a: 'Signing up is free and every new patient gets 100 credits. Medicine reminders, SOS and hospital search are always free. Doctor bookings and AI tools use credits, which never expire.' },
+  { q: 'Is AuraHealth free to use?', a: 'Signing up is free and every new patient gets 30 AI credits. Medicine reminders, SOS and hospital search are free. Doctor bookings use paid consultation credits.' },
   { q: 'How do video visits work?', a: 'Book a slot with a verified doctor. The video call opens 10 minutes before your time, right in your browser. There is nothing to install.' },
   { q: 'Can the AI replace my doctor?', a: 'No. Report summaries, skin scans and AuraBot help you understand your health and prepare for visits. Always follow your doctor’s advice.' },
   { q: 'What happens when I press SOS?', a: 'Hold the red button for 2 seconds. WhatsApp opens with your live location for your emergency contacts, and you can call 112 from the same screen.' },

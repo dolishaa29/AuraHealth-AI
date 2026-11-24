@@ -27,6 +27,7 @@ const NAV = [
 const UserLayout = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [credits, setCredits] = useState(null);
+  const [consultationCredits, setConsultationCredits] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -37,7 +38,10 @@ const UserLayout = () => {
           headers: { Authorization: `Bearer ${Cookies.get("token")}` },
           withCredentials: true,
         })
-        .then((res) => setCredits(res.data.balance))
+        .then(({ data }) => {
+          setCredits(data.balance);
+          setConsultationCredits(data.bookingCredits);
+        })
         .catch(() => {});
     };
     loadCredits();
@@ -98,9 +102,9 @@ const UserLayout = () => {
         </nav>
 
         <div className="p-5 rounded-[22px] bg-[#EEEDFF]">
-          <p className="text-[13px] font-semibold text-[#4B4A6B]">Your credits</p>
+          <p className="text-[13px] font-semibold text-[#4B4A6B]">AI credits</p>
           <p className="mt-1 text-[32px] font-extrabold tracking-tight text-[#312E81] leading-tight">{credits ?? '—'}</p>
-          <p className="mb-3.5 text-[13px] text-[#4B4A6B]">{credits != null ? `Enough for ${Math.floor(credits / 20)} bookings` : 'Loading…'}</p>
+          <p className="mb-3.5 text-[13px] text-[#4B4A6B]">{consultationCredits == null ? 'Loading…' : `${consultationCredits} consultation credits`}</p>
           <button onClick={() => go('/credits')} className="w-full h-[42px] rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold">
             Add credits
           </button>

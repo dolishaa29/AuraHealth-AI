@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Cookies from "js-cookie";
+import { useLocation } from "react-router-dom";
 import SuccessScreen from "./SuccessScreen";
 import DoctorSearchStep from "./DoctorSearchStep";
 import DateSlotStep from "./DateSlotStep";
@@ -9,6 +10,7 @@ import BookingConfirmStep from "./BookingConfirmStep";
 const API = import.meta.env.VITE_API_URL;
 
 const SlotBooking = () => {
+  const doctorId = useLocation().state?.doctorId;
   const [step, setStep] = useState(1);
   const [doctors, setDoctors] = useState([]);
   const [search, setSearch] = useState("");
@@ -16,6 +18,7 @@ const SlotBooking = () => {
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [selectedDate, setSelectedDate] = useState("");
   const [slots, setSlots] = useState([]);
+  const [bookingCost, setBookingCost] = useState(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [hasAppointmentToday, setHasAppointmentToday] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
@@ -32,10 +35,18 @@ const SlotBooking = () => {
   useEffect(() => {
     axios
       .get(API + "/viewdoctors")
-      .then((r) => setDoctors(r.data.doctors || []))
+      .then((r) => {
+        const list = r.data.doctors || [];
+        setDoctors(list);
+        const doctor = list.find((item) => item._id === doctorId);
+        if (doctor) {
+          setSelectedDoctor(doctor);
+          setStep(2);
+        }
+      })
       .catch(() => setError("Failed to load doctors."))
       .finally(() => setLoadingDoctors(false));
-  }, []);
+  }, [doctorId]);
 
   const filtered = doctors.filter(
     (d) =>
@@ -52,6 +63,7 @@ const SlotBooking = () => {
   const fetchSlots = async (doctorid, date) => {
     setLoadingSlots(true);
     setSlots([]);
+    setBookingCost(null);
     setSelectedSlot(null);
     setHasAppointmentToday(false);
     setError("");
@@ -63,6 +75,7 @@ const SlotBooking = () => {
       });
       if (res.data.success) {
         setSlots(res.data.slots || []);
+        setBookingCost(res.data.bookingCost);
         setHasAppointmentToday(res.data.hasAppointmentToday || false);
       }
     } catch {
@@ -180,6 +193,7 @@ const SlotBooking = () => {
             loadingSlots={loadingSlots}
             hasAppointmentToday={hasAppointmentToday}
             slots={slots}
+            bookingCost={bookingCost}
             selectedSlot={selectedSlot}
             onSelectSlot={(time) => { setSelectedSlot(time); setError(""); }}
             onBack={() => { setStep(1); setSelectedDate(""); setSlots([]); setSelectedSlot(null); }}
@@ -193,6 +207,7 @@ const SlotBooking = () => {
             selectedDate={selectedDate}
             selectedSlot={selectedSlot}
             description={description}
+            bookingCost={bookingCost}
             onDescriptionChange={(val) => { setDescription(val); if (error) setError(""); }}
             error={error}
             submitting={submitting}

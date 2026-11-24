@@ -49,13 +49,12 @@ const ViewAppointment = () => {
     if (!date || !time) return showToast("Please select both date and time", "error");
     setSubmitting(true);
     try {
-      await axios.post(import.meta.env.VITE_API_URL + "/approveappointment", { ...selectedAppointment, date, time }, adminAuth());
-      await axios.put(import.meta.env.VITE_API_URL + "/appointmentstatus", { id: selectedAppointment._id, status: "approved" }, adminAuth());
+      await axios.post(import.meta.env.VITE_API_URL + "/approveappointment", { id: selectedAppointment._id, date, time }, adminAuth());
       showToast("Appointment approved successfully");
       setShowModal(false);
       fetchAppointments();
-    } catch {
-      showToast("Failed to approve appointment", "error");
+    } catch (error) {
+      showToast(error.response?.data?.msg || "Failed to approve appointment", "error");
     } finally {
       setSubmitting(false);
     }

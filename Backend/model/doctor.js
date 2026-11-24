@@ -45,7 +45,6 @@ let doctormodel=mongo.Schema({
     },
 
     doctorstatus:{type:String , default:"unblock" , enum:["block","unblock"]},
-   payoutFeePaise: { type: Number, default: 0, min: 0 },
    payoutRevision: { type: Number, default: 0, select: false },
 
     location: {

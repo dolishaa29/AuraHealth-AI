@@ -2,6 +2,8 @@ const mongoose = require("mongoose");
 const Doctor = require("../model/doctor");
 const Appointment = require("../model/Appointment/appointment");
 const Withdrawal = require("../model/doctorWithdrawal");
+const Payment = require("../model/payment");
+const { BOOKING_CREDITS, DOCTOR_FEE_PAISE } = require("../config/consultationPricing");
 const { localDateTime } = require("../helper/reminderhelper");
 
 const HOLD_MS = 7 * 24 * 60 * 60 * 1000;
@@ -11,11 +13,32 @@ const withdrawalFields = "doctor amountPaise status reference note createdAt rev
 const validAmount = (amount, min) => Number.isSafeInteger(amount) && amount >= min && amount <= MAX_PAISE;
 const fail = (status, msg) => ({ status, msg });
 const reply = (res, value) => value.msg ? res.status(value.status).json({ msg: value.msg }) : res.json(value);
+const fundingLookup = [
+  { $lookup: {
+    from: Payment.collection.name, localField: "payoutFundingPayment", foreignField: "_id",
+    pipeline: [{ $match: { status: "paid", liveFunding: true, fundingBlocked: { $ne: true } } },
+      { $project: { maxDoctorFeePaise: 1 } }],
+    as: "funding",
+  } },
+  { $match: { $expr: { $gte: [{ $ifNull: [{ $arrayElemAt: ["$funding.maxDoctorFeePaise", 0] }, 0] }, "$payoutFeePaise"] } } },
+];
+
+function fundedVisits(match, sort, limit) {
+  return Appointment.aggregate([
+    { $match: { ...match, payoutFeePaise: { $gt: 0 }, payoutFundingPayment: { $type: "objectId" } } },
+    { $sort: sort },
+    ...fundingLookup,
+    { $limit: limit },
+    { $project: Object.fromEntries(earningsFields.split(" ").map((field) => [field, 1])) },
+  ]);
+}
 
 async function balances(doctorId, session = null) {
   const cutoff = new Date(Date.now() - HOLD_MS);
   const [earnings = {}] = await Appointment.aggregate([
-    { $match: { doctorid: String(doctorId), payoutFeePaise: { $gt: 0 }, payoutCompletedAt: { $type: "date" } } },
+    { $match: { doctorid: String(doctorId), payoutFeePaise: { $gt: 0 }, payoutCompletedAt: { $type: "date" },
+      payoutFundingPayment: { $type: "objectId" } } },
+    ...fundingLookup,
     { $group: {
       _id: null,
       cleared: { $sum: { $cond: [{ $and: [{ $ne: ["$payoutHeld", true] }, { $lte: ["$payoutCompletedAt", cutoff] }] }, "$payoutFeePaise", 0] } },
@@ -51,11 +74,10 @@ exports.getDoctorPayout = async (req, res) => {
   const id = req.doctor._id;
   const [summary, earnings, withdrawals] = await Promise.all([
     balances(id),
-    Appointment.find({ doctorid: String(id), payoutFeePaise: { $gt: 0 }, payoutCompletedAt: { $type: "date" } })
-      .select("date time payoutFeePaise payoutCompletedAt payoutHeld").sort({ payoutCompletedAt: -1 }).limit(30).lean(),
+    fundedVisits({ doctorid: String(id), payoutCompletedAt: { $type: "date" } }, { payoutCompletedAt: -1 }, 30),
     Withdrawal.find({ doctor: id }).select(withdrawalFields).sort({ createdAt: -1 }).limit(30).lean(),
   ]);
-  return res.json({ summary, earnings, withdrawals, fee: req.doctor.payoutFeePaise || 0 });
+  return res.json({ summary, earnings, withdrawals, fee: DOCTOR_FEE_PAISE });
 };
 
 exports.requestWithdrawal = async (req, res) => {
@@ -82,27 +104,14 @@ exports.getAdminPayoutQueue = async (req, res) => {
   const cutoff = localDateTime("Asia/Kolkata", new Date(Date.now() - 30 * 60 * 1000));
   const eligible = { $or: [{ date: { $lt: cutoff.date } }, { date: cutoff.date, time: { $lte: cutoff.time } }] };
   const [visits, completed, pending, reviewed] = await Promise.all([
-    Appointment.find({ payoutFeePaise: { $gt: 0 }, payoutCompletedAt: null, payoutDeclinedAt: null, ...eligible })
-      .select(earningsFields).sort({ date: 1, time: 1 }).limit(40).lean(),
-    Appointment.find({ payoutFeePaise: { $gt: 0 }, payoutCompletedAt: { $type: "date" } })
-      .select(earningsFields).sort({ payoutCompletedAt: -1 }).limit(30).lean(),
+    fundedVisits({ payoutCompletedAt: null, payoutDeclinedAt: null, ...eligible }, { date: 1, time: 1 }, 40),
+    fundedVisits({ payoutCompletedAt: { $type: "date" } }, { payoutCompletedAt: -1 }, 30),
     Withdrawal.find({ status: { $in: ["requested", "processing"] } }).select(`${withdrawalFields} reviewedBy`).sort({ createdAt: 1 }).limit(40).populate("doctor", "name email").lean(),
     Withdrawal.find({ status: { $in: ["paid", "rejected"] } }).select(withdrawalFields).sort({ reviewedAt: -1 }).limit(30).populate("doctor", "name email").lean(),
   ]);
   return res.json({ visits, completed, pending: pending.map(({ reviewedBy, ...item }) => ({
     ...item, assignedToYou: String(reviewedBy) === String(req.admin._id),
-  })), reviewed });
-};
-
-exports.setDoctorFee = async (req, res) => {
-  const { email, amountPaise } = req.body || {};
-  if (typeof email !== "string" || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || !validAmount(amountPaise, 0)) {
-    return res.status(400).json({ msg: "Enter a doctor email and a valid fee in INR." });
-  }
-  const doctor = await Doctor.findOneAndUpdate({ email: email.trim() }, { $set: { payoutFeePaise: amountPaise } }, { new: true })
-    .select("email payoutFeePaise");
-  if (!doctor) return res.status(404).json({ msg: "Doctor not found." });
-  return res.json({ doctor });
+  })), reviewed, fee: DOCTOR_FEE_PAISE });
 };
 
 exports.reviewVisit = async (req, res) => {
@@ -111,7 +120,8 @@ exports.reviewVisit = async (req, res) => {
   if (!mongoose.isObjectIdOrHexString(id) || !["complete", "no-show", "hold", "release"].includes(action)) {
     return res.status(400).json({ msg: "Choose a valid visit and action." });
   }
-  const appointment = await Appointment.findOne({ _id: id, payoutFeePaise: { $gt: 0 } }).select(earningsFields).lean();
+  const appointment = await Appointment.findOne({ _id: id, payoutFeePaise: { $gt: 0 }, payoutFundingPayment: { $type: "objectId" } })
+    .select(`${earningsFields} +payoutFundingPayment`).lean();
   if (!appointment || !mongoose.isObjectIdOrHexString(appointment.doctorid)) return res.status(404).json({ msg: "Funded visit not found." });
   const now = new Date();
   const scheduled = Date.parse(`${appointment.date}T${appointment.time}:00+05:30`);
@@ -121,6 +131,13 @@ exports.reviewVisit = async (req, res) => {
   try {
     const result = await mongoose.connection.transaction(async (session) => {
       await lockDoctor(appointment.doctorid, session);
+      const funding = {
+        _id: appointment.payoutFundingPayment, status: "paid", liveFunding: true, fundingBlocked: { $ne: true },
+        maxDoctorFeePaise: { $gte: appointment.payoutFeePaise },
+      };
+      if (action === "complete" && !await Payment.exists(funding).session(session)) {
+        return fail(409, "This visit no longer has valid payment backing.");
+      }
       const initialReview = action === "complete" || action === "no-show";
       const condition = { _id: id, payoutDeclinedAt: null, payoutCompletedAt: initialReview ? null : { $type: "date" } };
       const updates = {
@@ -132,6 +149,9 @@ exports.reviewVisit = async (req, res) => {
       const update = { ...updates[action], payoutReviewedBy: req.admin._id };
       const visit = await Appointment.findOneAndUpdate(condition, { $set: update }, { new: true, session }).select(earningsFields);
       if (!visit) return fail(409, "The visit has already been reviewed or is awaiting completion.");
+      if (action === "no-show") {
+        await Payment.updateOne(funding, { $inc: { bookingCreditsRemaining: BOOKING_CREDITS } }, { session });
+      }
       if (action === "hold") {
         const summary = await balances(new mongoose.Types.ObjectId(appointment.doctorid), session);
         if (summary.cleared < summary.paid + summary.reserved) {

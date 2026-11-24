@@ -76,7 +76,7 @@ const Userregister = () => {
     <AuthShell
       panelTitle="Your health, in one gentle place."
       panelText="Create your free patient account in a minute."
-      points={["100 free credits to start", "Book verified doctors by video", "Reminders & SOS always free"]}
+      points={["30 free AI credits to start", "Book verified doctors by video", "Reminders & SOS always free"]}
       title={step === 1 ? "Create your account" : "Check your email"}
       subtitle={step === 1 ? "Just a few details to get you started." : `We sent a 6-digit code to ${email}.`}
     >

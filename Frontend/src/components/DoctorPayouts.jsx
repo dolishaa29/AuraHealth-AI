@@ -95,7 +95,7 @@ export function DoctorEarnings() {
     {notice && <p role="status" className="text-sm text-emerald-800">{notice}</p>}
     {!data && !error && <p role="status" className="text-sm">Loading earnings…</p>}
     {data && <>
-      <p className="text-sm text-[#6B6A8A]">{data.fee ? `Current fee for new funded bookings is ${money(data.fee)} per verified completed visit.` : "A fee hasn’t been configured for new bookings."} Earnings clear after seven days unless held by an admin.</p>
+      <p className="text-sm text-[#6B6A8A]">The standard fee for new bookings is {money(data.fee)} per verified completed visit. Earnings clear after seven days unless held by an admin.</p>
       <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[["pending", "Pending or held"], ["available", "Available to withdraw"], ["reserved", "Reserved for withdrawal"], ["paid", "Paid out"]].map(([key, title]) =>
           <div key={key} className="rounded-2xl bg-[#F6F6FD] p-4"><dt className="text-sm text-[#6B6A8A]">{title}</dt><dd className="text-xl font-extrabold">{money(data.summary[key])}</dd></div>)}
@@ -128,8 +128,6 @@ export function DoctorEarnings() {
 
 export function AdminPayouts() {
   const { data, error, setError, load, endpoint } = usePayouts("admin");
-  const [email, setEmail] = useState("");
-  const [fee, setFee] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [review, setReview] = useState(null);
@@ -148,17 +146,6 @@ export function AdminPayouts() {
     } finally {
       setBusy(false);
     }
-  };
-
-  const saveFee = (event) => {
-    event.preventDefault();
-    const amountPaise = parseAmount(fee);
-    if (!Number.isSafeInteger(amountPaise) || amountPaise > 100000000) {
-      setError("Enter a valid fee in INR with up to two decimal places.");
-      return;
-    }
-    if (amountPaise > 0 && !window.confirm(`Commit ${money(amountPaise)} per verified completed visit for new bookings with ${email}?`)) return;
-    save("fee", { email, amountPaise }, "Updated the fee for new bookings.");
   };
 
   const visitRow = (item, completed = false) => <li key={item._id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#F6F6FD] p-3 text-sm">
@@ -182,16 +169,7 @@ export function AdminPayouts() {
 
   return <section className={card}>
     <h2 className="text-xl font-extrabold">Doctor payouts</h2>
-    <form className="flex flex-wrap items-end gap-2" onSubmit={saveFee}>
-      <label className="grid gap-1 text-sm font-semibold">Doctor email
-        <input className={field} required type="email" maxLength={254} value={email} onChange={(event) => setEmail(event.target.value)} />
-      </label>
-      <label className="grid gap-1 text-sm font-semibold">Fee per visit (INR)
-        <input className={field} required inputMode="decimal" value={fee} onChange={(event) => setFee(event.target.value)} />
-      </label>
-      <button className={button} disabled={busy}>Set fee</button>
-    </form>
-    <p className="text-sm text-[#6B6A8A]">Applies to new direct bookings. Set the fee to zero to stop funding new bookings for this doctor.</p>
+    {data && <p className="text-sm text-[#6B6A8A]">Every doctor earns {money(data.fee)} per verified completed visit for new bookings.</p>}
     {error && <p role="alert" className="text-sm text-red-700">{error} <button type="button" className="font-bold underline" onClick={() => { setError(""); load(); }}>Refresh queue</button></p>}
     {notice && <p role="status" className="text-sm text-emerald-800">{notice}</p>}
     {!data && !error && <p role="status" className="text-sm">Loading payout queue…</p>}
@@ -209,7 +187,7 @@ export function AdminPayouts() {
         </div>
       </div>
       <h3 className="font-extrabold">Withdrawal queue</h3>
-      <p className="text-sm text-[#6B6A8A]">Claim a request before transferring funds. Verify the doctor’s payout destination separately, then record the confirmed transfer reference here.</p>
+      <p className="text-sm text-[#6B6A8A]">Claim a request before transferring funds. Verify payment settlement and the doctor’s payout destination, then record the confirmed transfer reference here.</p>
       {!data.pending.length && <p className="text-sm text-[#6B6A8A]">No withdrawals awaiting payment.</p>}
       <ul className="grid max-h-96 gap-2 overflow-y-auto">
         {data.pending.map((item) => <li key={item._id} className="grid gap-2 rounded-xl bg-[#F6F6FD] p-3 text-sm">

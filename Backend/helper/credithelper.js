@@ -1,12 +1,12 @@
 const User = require("../model/user");
 const CreditTransaction = require("../model/creditTransaction");
+const { BOOKING_CREDITS, CONSULTATION_CREDIT_PRICE_PAISE } = require("../config/consultationPricing");
 
-const WELCOME_CREDITS = 100;
+const WELCOME_CREDITS = 30;
 
 const CREDIT_COSTS = {
   reportAnalysis: 10,
-  slotBooking: 20,
-  appointmentRequest: 20,
+  slotBooking: BOOKING_CREDITS,
   aiChat: 1,
   liveSession: 5,
 };
@@ -14,29 +14,30 @@ const CREDIT_COSTS = {
 const LIVE_SESSION_MINUTES = 10;
 
 const CREDIT_PACKS = [
-  { id: "starter", name: "Starter", credits: 100, price: 10 },
-  { id: "plus", name: "Plus", credits: 300, price: 249, tag: "Popular" },
-  { id: "pro", name: "Pro", credits: 1000, price: 699, tag: "Best value" },
-];
+  { id: "starter", name: "Starter", credits: 100, aiCredits: 10 },
+  { id: "plus", name: "Plus", credits: 300, aiCredits: 30 },
+  { id: "pro", name: "Pro", credits: 1000, aiCredits: 100 },
+].map((pack) => ({ ...pack, price: pack.credits * CONSULTATION_CREDIT_PRICE_PAISE / 100 }));
 
 function findPack(packId) {
   return CREDIT_PACKS.find((pack) => pack.id === packId) || null;
 }
 
-async function giveWelcomeBonus(userId) {
+async function giveWelcomeBonus(userId, session = null) {
   const result = await User.updateOne(
     { _id: userId, credits: { $exists: false } },
-    { $set: { credits: WELCOME_CREDITS } }
+    { $set: { credits: WELCOME_CREDITS } },
+    { session }
   );
 
   if (result.modifiedCount === 1) {
-    await CreditTransaction.create({
+    await CreditTransaction.create([{
       user: userId,
       type: "credit",
       amount: WELCOME_CREDITS,
       reason: "Welcome bonus",
       balanceAfter: WELCOME_CREDITS,
-    });
+    }], { session });
   }
 }
 
@@ -71,7 +72,7 @@ async function spendCredits(userId, amount, reason) {
 }
 
 async function addCredits(userId, amount, reason, orderId = null, session = null) {
-  await giveWelcomeBonus(userId);
+  await giveWelcomeBonus(userId, session);
 
   const user = await User.findOneAndUpdate(
     { _id: userId },

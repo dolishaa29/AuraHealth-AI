@@ -15,7 +15,7 @@ const nextDays = () => {
 
 const DateSlotStep = ({
   selectedDoctor, getImageUrl, today, selectedDate, onDateChange, loadingSlots, hasAppointmentToday,
-  slots, selectedSlot, onSelectSlot, onBack, onContinue,
+  slots, selectedSlot, onSelectSlot, onBack, onContinue, bookingCost,
 }) => {
   const img = getImageUrl(selectedDoctor?.image);
   const pickDate = (value) => onDateChange({ target: { value } });
@@ -80,7 +80,7 @@ const DateSlotStep = ({
         </div>
         <div className="relative px-4 py-3.5 rounded-[20px] bg-white text-sm flex justify-between">
           <span className="text-[#4B4A6B]">{selectedDate ? new Date(selectedDate).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" }) : "No day yet"}{selectedSlot ? ` · ${formatTime(selectedSlot)}` : ""}</span>
-          <strong>20 credits</strong>
+          <strong>{bookingCost ? `${bookingCost} consultation credits` : "Choose a date"}</strong>
         </div>
         <button onClick={onContinue} disabled={!selectedSlot}
           className="relative h-[52px] rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-base font-extrabold disabled:opacity-50 shadow-[0_10px_20px_-6px_rgba(79,70,229,0.5)]">

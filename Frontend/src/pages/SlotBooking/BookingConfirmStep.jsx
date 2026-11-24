@@ -1,9 +1,10 @@
 import React from "react";
 import { ChevronLeft, AlertCircle, Loader2 } from "lucide-react";
 import { formatTime } from "./utils";
+import { Link } from "react-router-dom";
 
 const BookingConfirmStep = ({
-  selectedDoctor, selectedDate, selectedSlot, description, onDescriptionChange, error, submitting, onBack, onSubmit,
+  selectedDoctor, selectedDate, selectedSlot, description, onDescriptionChange, error, submitting, onBack, onSubmit, bookingCost,
 }) => (
   <div className="max-w-2xl flex flex-col gap-5">
     <button onClick={onBack} className="self-start h-10 pl-2 pr-4 rounded-full bg-white text-[#4B4A6B] text-sm font-bold flex items-center gap-1 hover:text-indigo-600 shadow-[0_8px_30px_rgba(79,70,229,0.06)]">
@@ -33,14 +34,14 @@ const BookingConfirmStep = ({
 
       <div className="flex justify-between items-center px-4 py-3.5 rounded-[20px] bg-[#F6F6FD] text-sm">
         <span className="text-[#4B4A6B]">Booking fee</span>
-        <strong>20 credits</strong>
+        <strong>{bookingCost} consultation credits</strong>
       </div>
 
       <button onClick={onSubmit} disabled={submitting || !description.trim()}
         className="h-[54px] rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-base font-extrabold flex items-center justify-center gap-2 disabled:opacity-50 shadow-[0_10px_20px_-6px_rgba(79,70,229,0.5)]">
         {submitting && <Loader2 size={18} className="animate-spin" />} {submitting ? "Booking…" : "Confirm booking"}
       </button>
-      <p className="text-center text-xs text-[#6B6A8A]">If the booking fails, your credits come straight back.</p>
+      <p className="text-center text-xs text-[#6B6A8A]">Consultation credits are used when the booking is confirmed. <Link to="/credits" className="font-bold text-indigo-700 underline">View credit packs</Link></p>
     </section>
   </div>
 );

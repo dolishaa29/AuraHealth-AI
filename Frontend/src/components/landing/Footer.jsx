@@ -17,7 +17,7 @@ const Footer = () => {
         <div aria-hidden="true" className="absolute right-1/3 -bottom-32 w-72 h-72 rounded-full bg-indigo-700" />
         <div className="relative">
           <h2 className="text-[34px] sm:text-[48px] font-extrabold leading-[1.05] tracking-[-0.035em]">Ready to feel looked after?</h2>
-          <p className="mt-3 text-lg text-indigo-100">Create your free account and get 100 credits today.</p>
+          <p className="mt-3 text-lg text-indigo-100">Create your free account and get 30 AI credits today.</p>
         </div>
         <div className="relative flex flex-wrap gap-3 lg:justify-end">
           <button onClick={() => navigate('/Userregister')} className="h-14 px-7 rounded-full bg-white text-[#312E81] text-base font-extrabold flex items-center gap-2 hover:bg-[#EEEDFF]">Get started free <ArrowRight size={18} /></button>

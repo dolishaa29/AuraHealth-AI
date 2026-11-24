@@ -9,7 +9,6 @@ const CARD = "bg-white rounded-[28px] shadow-[0_8px_30px_rgba(79,70,229,0.06)]";
 
 const COST_LABELS = {
   slotBooking: "Book a doctor slot",
-  appointmentRequest: "Appointment request",
   reportAnalysis: "Explain a report",
   liveSession: "Skin scan, 10 min",
   aiChat: "AuraBot message",
@@ -84,7 +83,7 @@ const Credits = () => {
       amount: order.amount,
       currency: order.currency,
       name: "AuraHealth",
-      description: `${pack.credits} credits (${pack.name} pack)`,
+      description: `${pack.credits} consultation credits (${pack.name} pack)`,
       prefill: order.user,
       theme: { color: "#4F46E5" },
       handler: async (response) => {
@@ -110,6 +109,7 @@ const Credits = () => {
   }
 
   const balance = wallet?.balance ?? 0;
+  const bookingCredits = wallet?.bookingCredits ?? 0;
   const costs = wallet?.costs || {};
 
   return (
@@ -117,7 +117,7 @@ const Credits = () => {
       <div className="flex flex-col gap-[22px] pb-24">
         <div>
           <h1 className="text-[28px] sm:text-[32px] font-extrabold tracking-[-0.025em]">Credits</h1>
-          <p className="mt-1.5 text-[15px] text-[#6B6A8A]">One simple balance for AI tools and doctor bookings.</p>
+          <p className="mt-1.5 text-[15px] text-[#6B6A8A]">Manage your AI credits and paid consultation credits.</p>
         </div>
 
         {error && <p className="px-5 py-3 rounded-[20px] bg-[#FFECEB] text-[#B42318] text-sm font-semibold">{error}</p>}
@@ -131,12 +131,12 @@ const Credits = () => {
               <div aria-hidden="true" className="absolute right-40 -bottom-28 w-52 h-52 rounded-full bg-indigo-700" />
               <div className="relative flex-[1_1_260px]">
                 <p className="text-[15px] font-bold text-indigo-100">You have</p>
-                <p className="my-1 text-6xl font-extrabold tracking-[-0.04em] leading-none">{balance} <span className="text-[22px] font-bold">credits</span></p>
-                <p className="text-[15px] text-indigo-100">They never expire. Top up anytime and they add to what you have.</p>
+                <p className="my-1 text-6xl font-extrabold tracking-[-0.04em] leading-none">{balance} <span className="text-[22px] font-bold">AI credits</span></p>
+                <p className="text-[15px] text-indigo-100">{bookingCredits} paid consultation credits available.</p>
               </div>
               <div className="relative grid grid-cols-3 gap-2.5">
                 {[
-                  [Math.floor(balance / (costs.slotBooking || 20)), "bookings"],
+                  [costs.slotBooking ? Math.floor(bookingCredits / costs.slotBooking) : 0, "bookings"],
                   [Math.floor(balance / (costs.reportAnalysis || 10)), "reports"],
                   [Math.floor(balance / (costs.liveSession || 5)), "skin scans"],
                 ].map(([n, label]) => (
@@ -151,17 +151,16 @@ const Credits = () => {
             <section>
               <h2 className="mb-3.5 text-xl font-extrabold">Top up</h2>
               {!wallet.paymentsEnabled && (
-                <p className="mb-3.5 px-5 py-3 rounded-[20px] bg-[#FFF4E5] text-[#B45309] text-sm font-semibold">Payments aren't switched on yet. You can still use your free credits.</p>
+                <p className="mb-3.5 px-5 py-3 rounded-[20px] bg-[#FFF4E5] text-[#B45309] text-sm font-semibold">Live checkout is unavailable. Your AI credits remain usable.</p>
               )}
               <div className="grid grid-cols-[repeat(auto-fit,minmax(230px,1fr))] gap-4">
                 {wallet.packs.map((pack, i) => {
                   const s = PACK_STYLES[i % PACK_STYLES.length];
                   return (
                     <div key={pack.id} className={`relative p-6 rounded-[28px] flex flex-col gap-1.5 ${s.card}`}>
-                      {pack.tag && <span className="absolute top-[18px] right-[18px] px-3 py-1 rounded-full bg-indigo-600 text-white text-xs font-extrabold">{pack.tag}</span>}
                       <p className={`text-sm font-extrabold ${s.name}`}>{pack.name}</p>
                       <p className={`text-[40px] font-extrabold tracking-[-0.03em] ${s.big}`}>{pack.credits}</p>
-                      <p className={`mb-3.5 text-[13px] ${s.name}`}>credits · ₹{(pack.price / pack.credits).toFixed(2)} each</p>
+                      <p className={`mb-3.5 text-[13px] ${s.name}`}>consultation credits + {pack.aiCredits} AI credits</p>
                       <button
                         onClick={() => buy(pack)}
                         disabled={!wallet.paymentsEnabled || buyingPack !== null}
@@ -173,7 +172,7 @@ const Credits = () => {
                   );
                 })}
               </div>
-              <p className="mt-3 text-[13px] text-[#6B6A8A]">Secure checkout by Razorpay · UPI, cards, netbanking · purchases are non-refundable</p>
+              <p className="mt-3 text-[13px] text-[#6B6A8A]">Consultation credits become available after Razorpay confirms the payment was captured.</p>
             </section>
 
             <div className="flex flex-wrap gap-5 items-start">
@@ -183,7 +182,7 @@ const Credits = () => {
                   {Object.entries(costs).map(([key, cost]) => (
                     <div key={key} className="flex justify-between items-center px-4 py-3 rounded-[18px] bg-[#F6F6FD]">
                       <span className="font-semibold">{COST_LABELS[key] || key}</span>
-                      <span className="font-extrabold">{cost}</span>
+                      <span className="font-extrabold">{cost} {key === "slotBooking" ? "consultation" : "AI"} credits</span>
                     </div>
                   ))}
                 </div>

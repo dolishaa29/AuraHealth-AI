@@ -4,6 +4,7 @@ let Razorpay=require("razorpay");
 let Payment=require("../model/payment");
 let CreditTransaction=require("../model/creditTransaction");
 let {CREDIT_COSTS,CREDIT_PACKS,findPack,getBalance,addCredits}=require("../helper/credithelper");
+const { DOCTOR_FEE_PAISE, maxFeeForPayment } = require("../config/consultationPricing");
 
 let razorpay=null;
 
@@ -47,36 +48,32 @@ function signaturesMatch(expected,received)
 
 
 
-async function markPaidAndAddCredits(orderId,paymentId)
+const liveCheckout = () => process.env.RAZORPAY_KEY_ID?.startsWith("rzp_live_") && Boolean(getRazorpay());
+
+async function markPaidAndAddCredits(entity)
 {
-    let session=await mongoose.startSession();
-    let balance=null;
+    if (!entity || entity.status !== "captured" || entity.currency !== "INR"
+        || typeof entity.id !== "string" || typeof entity.order_id !== "string"
+        || !Number.isSafeInteger(entity.amount) || entity.amount <= 0 || entity.amount_refunded > 0) return null;
 
-    try{
-        await session.withTransaction(async()=>
-        {
-            balance=null;
+    return mongoose.connection.transaction(async (session) => {
+        const payment = await Payment.findOne({
+            orderId: entity.order_id, amount: entity.amount, fundingBlocked: { $ne: true },
+        }).session(session);
+        if (!payment || (payment.status === "paid" && payment.paymentId !== entity.id)) return null;
+        if (payment.status === "paid") return payment;
 
-            let payment=await Payment.findOneAndUpdate(
-                {orderId:orderId,status:{$ne:"paid"}},
-                {$set:{status:"paid",paymentId:paymentId}},
-                {returnDocument:"after",session:session}
-            );
-            if(!payment)
-            {
-                return;
-            }
-
-            let pack=findPack(payment.packId);
-            let packName=pack ? pack.name : payment.packId;
-            balance=await addCredits(payment.user,payment.credits,"Bought "+packName+" pack",orderId,session);
-        });
-    }
-    finally{
-        await session.endSession();
-    }
-
-    return balance;
+        const cap = payment.consultationBundle && payment.liveFunding
+            ? maxFeeForPayment(payment.amount, payment.credits, entity.fee) : 0;
+        payment.status = "paid";
+        payment.paymentId = entity.id;
+        payment.bookingCreditsRemaining = cap ? payment.credits : 0;
+        payment.maxDoctorFeePaise = cap;
+        await payment.save({ session });
+        const walletCredits = payment.consultationBundle ? payment.aiCredits : payment.credits;
+        if (walletCredits > 0) await addCredits(payment.user, walletCredits, "Bought credit pack", payment.orderId, session);
+        return payment;
+    });
 }
 
 
@@ -87,16 +84,23 @@ exports.getWallet=async(req,res)=>
     try{
     let userId=req.user._id;
 
-    let balance=await getBalance(userId);
-    let transactions=await CreditTransaction.find({user:userId}).sort({createdAt:-1}).limit(30);
+    const [balance, transactions, booking] = await Promise.all([
+        getBalance(userId),
+        CreditTransaction.find({user:userId}).sort({createdAt:-1}).limit(30),
+        Payment.aggregate([
+            { $match: { user: userId, status: "paid", liveFunding: true, fundingBlocked: { $ne: true }, maxDoctorFeePaise: { $gte: DOCTOR_FEE_PAISE } } },
+            { $group: { _id: null, credits: { $sum: "$bookingCreditsRemaining" } } },
+        ]),
+    ]);
 
     return res.status(200).json({
         success:true,
         balance:balance,
+        bookingCredits: booking[0]?.credits ?? 0,
         costs:CREDIT_COSTS,
         packs:CREDIT_PACKS,
         transactions:transactions,
-        paymentsEnabled:getRazorpay()!==null
+        paymentsEnabled:Boolean(liveCheckout())
     });
     }
     catch(err)
@@ -113,19 +117,19 @@ exports.createOrder=async(req,res)=>
 {
     try{
     let user=req.user;
-    let pack=findPack(req.body.packId);
+    let pack=findPack(req.body?.packId);
 
     if(!pack)
     {
         return res.status(400).json({success:false,msg:"Please choose a valid credit pack"});
     }
 
-    let rzp=getRazorpay();
-    if(!rzp)
+    if(!liveCheckout())
     {
-        return res.status(503).json({success:false,msg:"Payments are not set up yet. Please try again later."});
+        return res.status(503).json({success:false,msg:"Live consultation payments are unavailable."});
     }
 
+    const rzp = getRazorpay();
     let order=await rzp.orders.create({
         amount:pack.price*100,
         currency:"INR",
@@ -138,7 +142,10 @@ exports.createOrder=async(req,res)=>
         orderId:order.id,
         packId:pack.id,
         credits:pack.credits,
-        amount:order.amount
+        amount:pack.price*100,
+        consultationBundle:true,
+        liveFunding:true,
+        aiCredits:pack.aiCredits
     });
 
     return res.status(201).json({
@@ -169,11 +176,11 @@ exports.verifyPayment=async(req,res)=>
 {
     try{
     let userId=req.user._id;
-    let orderId=req.body.razorpay_order_id;
-    let paymentId=req.body.razorpay_payment_id;
-    let signature=req.body.razorpay_signature;
+    let { razorpay_order_id: orderId, razorpay_payment_id: paymentId, razorpay_signature: signature } = req.body || {};
 
-    if(!orderId || !paymentId || !signature)
+    if(typeof orderId !== "string" || !/^order_[A-Za-z0-9]+$/.test(orderId)
+        || typeof paymentId !== "string" || !/^pay_[A-Za-z0-9]+$/.test(paymentId)
+        || typeof signature !== "string" || !/^[a-f0-9]{64}$/i.test(signature))
     {
         return res.status(400).json({success:false,msg:"Payment details are missing"});
     }
@@ -194,12 +201,19 @@ exports.verifyPayment=async(req,res)=>
         return res.status(400).json({success:false,msg:"Payment could not be verified"});
     }
 
-    await markPaidAndAddCredits(orderId,paymentId);
+    const entity = await getRazorpay().payments.fetch(paymentId);
+    if (entity.id !== paymentId || entity.order_id !== orderId || entity.amount !== payment.amount || entity.currency !== "INR") {
+        return res.status(400).json({success:false,msg:"Payment doesn't match this order."});
+    }
+    const credited = await markPaidAndAddCredits(entity);
+    if (!credited) return res.status(409).json({success:false,msg:"Payment is not confirmed as captured or its funding is on hold."});
     let balance=await getBalance(userId);
 
     return res.status(200).json({
         success:true,
-        msg:payment.credits+" credits added to your wallet",
+        msg:credited.consultationBundle
+            ? (credited.maxDoctorFeePaise ? "Payment confirmed. Consultation and AI credits are ready." : "Payment confirmed. Consultation funding is on hold for review.")
+            : payment.credits+" AI credits added to your wallet",
         balance:balance
     });
     }
@@ -232,6 +246,16 @@ exports.razorpayWebhook=async(req,res)=>
 
     let event=req.body.event;
     let payload=req.body.payload || {};
+    if (event === "refund.created" || event === "refund.processed" || event === "payment.dispute.created") {
+        const paymentId = payload.refund?.entity?.payment_id || payload.dispute?.entity?.payment_id;
+        if (typeof paymentId === "string") {
+            // Fetch the order so a refund arriving before the capture webhook can still block that lot.
+            const entity = await getRazorpay().payments.fetch(paymentId);
+            await Payment.updateOne({ orderId: entity.order_id, $or: [{ paymentId }, { status: { $ne: "paid" } }] },
+                { $set: { fundingBlocked: true, bookingCreditsRemaining: 0 } });
+        }
+        return res.status(200).json({success:true});
+    }
     let paymentEntity=payload.payment ? payload.payment.entity : null;
 
     if(!paymentEntity)
@@ -241,7 +265,7 @@ exports.razorpayWebhook=async(req,res)=>
 
     if(event==="payment.captured" || event==="order.paid")
     {
-        await markPaidAndAddCredits(paymentEntity.order_id,paymentEntity.id);
+        await markPaidAndAddCredits(paymentEntity);
     }
 
     if(event==="payment.failed")
