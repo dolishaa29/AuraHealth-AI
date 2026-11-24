@@ -63,6 +63,7 @@ function checkReminderData(body)
     };
 }
 
+exports.checkReminderData = checkReminderData;
 
 
 exports.getReminders=async(req,res)=>

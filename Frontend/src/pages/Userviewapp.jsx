@@ -4,6 +4,7 @@ import Cookies from 'js-cookie';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Video, MessageCircle, Star, CalendarCheck, Loader2 } from 'lucide-react';
 import { formatTime } from '../utils/time';
+import MedicineChanges from '../components/MedicineChanges';
 
 const CARD = "bg-white rounded-[28px] shadow-[0_8px_30px_rgba(79,70,229,0.06)]";
 const API = import.meta.env.VITE_API_URL;
@@ -129,6 +130,7 @@ const Userviewapp = () => {
                   <button onClick={() => navigate('/userchat')} className="h-12 px-5 rounded-full bg-white text-[#312E81] text-[15px] font-bold flex items-center gap-2"><MessageCircle size={18} /> Message</button>
                 </div>
                 <div className="relative w-full">{sharingControl(next)}</div>
+                <MedicineChanges appointment={next} />
               </section>
             )}
 
@@ -153,6 +155,7 @@ const Userviewapp = () => {
                         <span className="px-3.5 py-1.5 rounded-full bg-white text-[#05603A] text-[13px] font-extrabold">Confirmed</span>
                       )}
                       {sharingControl(a)}
+                      <MedicineChanges appointment={a} />
                     </div>
                   );
                 })}

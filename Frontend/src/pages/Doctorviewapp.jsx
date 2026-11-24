@@ -4,6 +4,7 @@ import Cookies from "js-cookie";
 import { useNavigate } from "react-router-dom";
 import { Video, MessageCircle, Sparkles, Loader2, CalendarCheck, Mail } from "lucide-react";
 import { formatDate, formatTime } from "../utils/time";
+import MedicineChanges from "../components/MedicineChanges";
 
 const API = import.meta.env.VITE_API_URL;
 const authConfig = () => ({ headers: { Authorization: `Bearer ${Cookies.get("emstoken")}` }, withCredentials: true });
@@ -153,6 +154,7 @@ const Doctorviewapp = () => {
                   <button onClick={() => navigate("/doctorchat")} className="h-12 px-5 rounded-full bg-white text-[#312E81] text-[15px] font-bold flex items-center gap-2"><MessageCircle size={17} /> Message</button>
                 </div>
                 <div className="relative w-full">{briefingBox(next)}</div>
+                <MedicineChanges appointment={next} doctor canPublish={Date.now() >= when(next).getTime()} />
               </section>
             )}
 
@@ -176,6 +178,7 @@ const Doctorviewapp = () => {
                         <Sparkles size={14} /> {briefingId === a._id ? "Hide brief" : "Visit brief"}
                       </button>
                       {briefingBox(a)}
+                      <MedicineChanges appointment={a} doctor canPublish={Date.now() >= when(a).getTime()} />
                     </div>
                   );
                 })}
