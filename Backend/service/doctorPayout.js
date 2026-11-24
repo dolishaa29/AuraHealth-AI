@@ -1,0 +1,188 @@
+const mongoose = require("mongoose");
+const Doctor = require("../model/doctor");
+const Appointment = require("../model/Appointment/appointment");
+const Withdrawal = require("../model/doctorWithdrawal");
+const { localDateTime } = require("../helper/reminderhelper");
+
+const HOLD_MS = 7 * 24 * 60 * 60 * 1000;
+const MAX_PAISE = 100000000;
+const earningsFields = "date time doctorid doctormail payoutFeePaise payoutCompletedAt payoutHeld";
+const withdrawalFields = "doctor amountPaise status reference note createdAt reviewedAt";
+const validAmount = (amount, min) => Number.isSafeInteger(amount) && amount >= min && amount <= MAX_PAISE;
+const fail = (status, msg) => ({ status, msg });
+const reply = (res, value) => value.msg ? res.status(value.status).json({ msg: value.msg }) : res.json(value);
+
+async function balances(doctorId, session = null) {
+  const cutoff = new Date(Date.now() - HOLD_MS);
+  const [earnings = {}] = await Appointment.aggregate([
+    { $match: { doctorid: String(doctorId), payoutFeePaise: { $gt: 0 }, payoutCompletedAt: { $type: "date" } } },
+    { $group: {
+      _id: null,
+      cleared: { $sum: { $cond: [{ $and: [{ $ne: ["$payoutHeld", true] }, { $lte: ["$payoutCompletedAt", cutoff] }] }, "$payoutFeePaise", 0] } },
+      total: { $sum: "$payoutFeePaise" },
+    } },
+  ]).session(session);
+  const [withdrawals = {}] = await Withdrawal.aggregate([
+    { $match: { doctor: doctorId, status: { $in: ["requested", "processing", "paid"] } } },
+    { $group: {
+      _id: null,
+      reserved: { $sum: { $cond: [{ $ne: ["$status", "paid"] }, "$amountPaise", 0] } },
+      paid: { $sum: { $cond: [{ $eq: ["$status", "paid"] }, "$amountPaise", 0] } },
+    } },
+  ]).session(session);
+  const cleared = earnings.cleared ?? 0;
+  const reserved = withdrawals.reserved ?? 0;
+  const paid = withdrawals.paid ?? 0;
+  return { cleared, pending: (earnings.total ?? 0) - cleared, available: Math.max(0, cleared - reserved - paid), reserved, paid };
+}
+
+function lockDoctor(doctorId, session) {
+  return Doctor.updateOne({ _id: doctorId }, { $inc: { payoutRevision: 1 } }, { session });
+}
+
+exports.doctorPayoutAccess = (req, res, next) => {
+  if (req.authRole !== "doctor") return res.status(401).json({ msg: "Sign in again as a doctor." });
+  if (req.doctor.doctorstatus === "block") return res.status(403).json({ msg: "This doctor account is blocked." });
+  res.set("Cache-Control", "no-store");
+  next();
+};
+
+exports.getDoctorPayout = async (req, res) => {
+  const id = req.doctor._id;
+  const [summary, earnings, withdrawals] = await Promise.all([
+    balances(id),
+    Appointment.find({ doctorid: String(id), payoutFeePaise: { $gt: 0 }, payoutCompletedAt: { $type: "date" } })
+      .select("date time payoutFeePaise payoutCompletedAt payoutHeld").sort({ payoutCompletedAt: -1 }).limit(30).lean(),
+    Withdrawal.find({ doctor: id }).select(withdrawalFields).sort({ createdAt: -1 }).limit(30).lean(),
+  ]);
+  return res.json({ summary, earnings, withdrawals, fee: req.doctor.payoutFeePaise || 0 });
+};
+
+exports.requestWithdrawal = async (req, res) => {
+  const { amountPaise, requestKey } = req.body || {};
+  if (!validAmount(amountPaise, 1) || typeof requestKey !== "string" || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(requestKey)) {
+    return res.status(400).json({ msg: "Enter a valid amount and request identifier." });
+  }
+  const doctor = req.doctor._id;
+  const result = await mongoose.connection.transaction(async (session) => {
+    await lockDoctor(doctor, session);
+    const existing = await Withdrawal.findOne({ doctor, requestKey }).select(withdrawalFields).session(session);
+    if (existing) return existing.amountPaise === amountPaise ? { withdrawal: existing } : fail(409, "That request already has a different amount.");
+    const summary = await balances(doctor, session);
+    if (amountPaise > summary.available) return fail(409, "That amount exceeds your available earnings.");
+    const withdrawal = new Withdrawal({ doctor, amountPaise, requestKey });
+    await withdrawal.save({ session });
+    return { withdrawal };
+  });
+  return reply(res, result);
+};
+
+exports.getAdminPayoutQueue = async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  const cutoff = localDateTime("Asia/Kolkata", new Date(Date.now() - 30 * 60 * 1000));
+  const eligible = { $or: [{ date: { $lt: cutoff.date } }, { date: cutoff.date, time: { $lte: cutoff.time } }] };
+  const [visits, completed, pending, reviewed] = await Promise.all([
+    Appointment.find({ payoutFeePaise: { $gt: 0 }, payoutCompletedAt: null, payoutDeclinedAt: null, ...eligible })
+      .select(earningsFields).sort({ date: 1, time: 1 }).limit(40).lean(),
+    Appointment.find({ payoutFeePaise: { $gt: 0 }, payoutCompletedAt: { $type: "date" } })
+      .select(earningsFields).sort({ payoutCompletedAt: -1 }).limit(30).lean(),
+    Withdrawal.find({ status: { $in: ["requested", "processing"] } }).select(`${withdrawalFields} reviewedBy`).sort({ createdAt: 1 }).limit(40).populate("doctor", "name email").lean(),
+    Withdrawal.find({ status: { $in: ["paid", "rejected"] } }).select(withdrawalFields).sort({ reviewedAt: -1 }).limit(30).populate("doctor", "name email").lean(),
+  ]);
+  return res.json({ visits, completed, pending: pending.map(({ reviewedBy, ...item }) => ({
+    ...item, assignedToYou: String(reviewedBy) === String(req.admin._id),
+  })), reviewed });
+};
+
+exports.setDoctorFee = async (req, res) => {
+  const { email, amountPaise } = req.body || {};
+  if (typeof email !== "string" || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || !validAmount(amountPaise, 0)) {
+    return res.status(400).json({ msg: "Enter a doctor email and a valid fee in INR." });
+  }
+  const doctor = await Doctor.findOneAndUpdate({ email: email.trim() }, { $set: { payoutFeePaise: amountPaise } }, { new: true })
+    .select("email payoutFeePaise");
+  if (!doctor) return res.status(404).json({ msg: "Doctor not found." });
+  return res.json({ doctor });
+};
+
+exports.reviewVisit = async (req, res) => {
+  const { id } = req.params;
+  const { action } = req.body || {};
+  if (!mongoose.isObjectIdOrHexString(id) || !["complete", "no-show", "hold", "release"].includes(action)) {
+    return res.status(400).json({ msg: "Choose a valid visit and action." });
+  }
+  const appointment = await Appointment.findOne({ _id: id, payoutFeePaise: { $gt: 0 } }).select(earningsFields).lean();
+  if (!appointment || !mongoose.isObjectIdOrHexString(appointment.doctorid)) return res.status(404).json({ msg: "Funded visit not found." });
+  const now = new Date();
+  const scheduled = Date.parse(`${appointment.date}T${appointment.time}:00+05:30`);
+  if (!Number.isFinite(scheduled) || now.getTime() < scheduled + 30 * 60 * 1000) {
+    return res.status(409).json({ msg: "Review this visit after the scheduled slot ends." });
+  }
+  try {
+    const result = await mongoose.connection.transaction(async (session) => {
+      await lockDoctor(appointment.doctorid, session);
+      const initialReview = action === "complete" || action === "no-show";
+      const condition = { _id: id, payoutDeclinedAt: null, payoutCompletedAt: initialReview ? null : { $type: "date" } };
+      const updates = {
+        complete: { payoutCompletedAt: now, payoutHeld: false },
+        "no-show": { payoutDeclinedAt: now },
+        hold: { payoutHeld: true },
+        release: { payoutHeld: false },
+      };
+      const update = { ...updates[action], payoutReviewedBy: req.admin._id };
+      const visit = await Appointment.findOneAndUpdate(condition, { $set: update }, { new: true, session }).select(earningsFields);
+      if (!visit) return fail(409, "The visit has already been reviewed or is awaiting completion.");
+      if (action === "hold") {
+        const summary = await balances(new mongoose.Types.ObjectId(appointment.doctorid), session);
+        if (summary.cleared < summary.paid + summary.reserved) {
+          throw Object.assign(new Error("This hold would affect earnings already reserved or paid."), { code: "PAYOUT_HOLD_CONFLICT" });
+        }
+      }
+      return { visit };
+    });
+    return reply(res, result);
+  } catch (err) {
+    if (err.code === "PAYOUT_HOLD_CONFLICT") return res.status(409).json({ msg: err.message });
+    throw err;
+  }
+};
+
+exports.reviewWithdrawal = async (req, res) => {
+  const { id } = req.params;
+  const { status, reference, note } = req.body || {};
+  if (!mongoose.isObjectIdOrHexString(id) || !["processing", "paid", "rejected"].includes(status)
+    || (status === "paid" && (typeof reference !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._/-]{2,99}$/.test(reference.trim())))
+    || (status === "rejected" && (typeof note !== "string" || !note.trim() || note.length > 250))) {
+    return res.status(400).json({ msg: "Enter a valid payment reference or a rejection reason." });
+  }
+  const item = await Withdrawal.findById(id).select("doctor").lean();
+  if (!item) return res.status(404).json({ msg: "Withdrawal not found." });
+
+  try {
+    const result = await mongoose.connection.transaction(async (session) => {
+      await lockDoctor(item.doctor, session);
+      const allowedStatus = status === "processing" ? "requested" : status === "paid" ? "processing" : { $in: ["requested", "processing"] };
+      const withdrawal = await Withdrawal.findOne({ _id: id, status: allowedStatus }).session(session);
+      if (!withdrawal) return fail(409, "This withdrawal has already been reviewed.");
+      if (withdrawal.status === "processing" && String(withdrawal.reviewedBy) !== String(req.admin._id)) {
+        return fail(409, "This transfer is assigned to another admin.");
+      }
+      if (status === "processing" || status === "paid") {
+        const summary = await balances(item.doctor, session);
+        if (summary.cleared - summary.paid < summary.reserved) {
+          return fail(409, "Cleared earnings no longer cover reserved withdrawals. Review the holds before recording payment.");
+        }
+        if (status === "paid") withdrawal.reference = reference.trim().toUpperCase();
+      } else withdrawal.note = note.trim();
+      withdrawal.status = status;
+      withdrawal.reviewedAt = new Date();
+      withdrawal.reviewedBy = req.admin._id;
+      await withdrawal.save({ session });
+      return { withdrawal };
+    });
+    return reply(res, result);
+  } catch (err) {
+    if (err.code === 11000) return res.status(409).json({ msg: "That payment reference is already recorded." });
+    throw err;
+  }
+};

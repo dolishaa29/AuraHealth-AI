@@ -4,7 +4,7 @@ let rec=require("../model/doctor");
 const Report = require("../model/report");
 const { isValidObjectId } = require("mongoose");
 const DoseLog = require("../model/doseLog");
-const { addDays, localDateTime } = require("../helper/reminderhelper");
+const { addDays, isValidDate, isValidTime, localDateTime } = require("../helper/reminderhelper");
 const { CREDIT_COSTS, spendCredits, addCredits, notEnoughCreditsMsg } = require("../helper/credithelper");
 exports.appointrequest=async(req,res)=>
 {
@@ -162,15 +162,23 @@ exports.getAvailableSlots = async (req, res) => {
 
 exports.bookSlot = async (req, res) => {
   const user = req.user;
-  const { doctorid, date, time, description } = req.body;
+  const { doctorid, date, time, description } = req.body || {};
 
-  if (!doctorid || !date || !time || !description) {
-    return res.status(400).json({ success: false, msg: 'All fields are required' });
+  if (!isValidObjectId(doctorid) || !isValidDate(date) || !isValidTime(time)
+    || typeof description !== "string" || !description.trim()) {
+    return res.status(400).json({ success: false, msg: 'Choose a doctor, date and time, and enter a reason for the visit.' });
+  }
+  if (Date.parse(`${date}T${time}:00+05:30`) <= Date.now()
+    || !generateTimeSlots([]).some((slot) => slot.time === time)) {
+    return res.status(400).json({ success: false, msg: 'Choose a future appointment slot.' });
   }
 
   const doctor = await rec.findOne({ _id: doctorid });
   if (!doctor) {
     return res.status(404).json({ success: false, msg: 'Doctor not found' });
+  }
+  if (doctor.doctorstatus === "block") {
+    return res.status(403).json({ success: false, msg: "This doctor is unavailable for booking." });
   }
 
   const existingUserApp = await rec5.findOne({ userid: user._id.toString(), date });
@@ -197,6 +205,7 @@ exports.bookSlot = async (req, res) => {
     doctorid,
     doctormail: doctor.email,
     description,
+    payoutFeePaise: doctor.payoutFeePaise || 0,
     date,
     time
   });

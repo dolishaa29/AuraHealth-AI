@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { CalendarCheck, CalendarClock, CheckCircle2, Users, Video, MessageCircle, Sparkles, Loader2, AlertCircle, RefreshCw, Check } from 'lucide-react';
 import { todayStr, formatTime } from '../utils/time';
 import DashboardAnalytics from '../components/DashboardAnalytics';
+import { DoctorEarnings } from '../components/DoctorPayouts';
 
 const API = import.meta.env.VITE_API_URL;
 const authConfig = () => ({ headers: { Authorization: `Bearer ${Cookies.get("emstoken")}` }, withCredentials: true });
@@ -155,6 +156,7 @@ const Docterdashboard = () => {
         </div>
 
         <DashboardAnalytics role="doctor" />
+        <DoctorEarnings />
 
         <div className="flex flex-wrap gap-5 items-start">
 
