@@ -155,7 +155,17 @@ const Credits = () => {
                 <p className="mb-3.5 px-5 py-3 rounded-[20px] bg-[#FFF4E5] text-[#B45309] text-sm font-semibold">Checkout is unavailable. Your AI credits remain usable.</p>
               )}
               {testCheckout && (
-                <p className="mb-3.5 px-5 py-3 rounded-[20px] bg-[#FFF4E5] text-[#B45309] text-sm font-semibold">Razorpay Test Mode. No real charge. These packs add consultation and AI credits.</p>
+                <p className="mb-3.5 px-5 py-3 rounded-[20px] bg-[#FFF4E5] text-[#B45309] text-sm font-semibold">
+                  Razorpay Test Mode. No real charge. These packs add consultation and AI credits.{" "}
+                  <a
+                    href="https://razorpay.com/docs/payments/payments/test-card-details"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline underline-offset-2"
+                  >
+                    Choose a Razorpay test card (opens in a new tab)
+                  </a>
+                </p>
               )}
               <div className="grid grid-cols-[repeat(auto-fit,minmax(230px,1fr))] gap-4">
                 {wallet.packs.map((pack, i) => {
