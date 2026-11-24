@@ -51,6 +51,7 @@ A telemedicine platform that connects patients with doctors. Patients can book a
 - The wallet tracks AI and consultation credits separately and shows transaction history. It starts with 30 welcome AI credits. An AI chat message costs 1 credit, a report analysis costs 10, and a 10-minute live skin analysis session costs 5.
 - Booking costs 100 consultation credits from a verified Razorpay Live Mode purchase. Starter, Plus, and Pro packs include 100, 300, and 1,000 consultation credits plus 10, 30, and 100 AI credits, respectively.
 - Razorpay checkout and webhooks verify payments before credits are added to the wallet.
+- **Razorpay Test Mode card** for a sandbox checkout: `4239 5360 0631 5640` (Visa, any CVV and any future expiry). AuraHealth's consultation checkout requires Razorpay Live Mode. [Razorpay test card guide](https://razorpay.com/blog/accept-international-payments-webflow/)
 - Doctors can track earnings, see available balances and payout history, and request withdrawals from cleared earnings.
 - Admins confirm completed consultations, can place earnings on hold or release them, and review withdrawal requests. They record the payment reference after transferring funds.
 
@@ -64,11 +65,16 @@ A telemedicine platform that connects patients with doctors. Patients can book a
 
 | Part | Built with |
 |---|---|
-| Frontend | React 19, Vite, React Router, Tailwind CSS, Socket.IO client, Leaflet (maps), Recharts |
-| Backend | Node.js, Express 5, MongoDB (Mongoose), Socket.IO, Redis |
-| AI | Google Gemini (`gemini-2.5-flash`) |
-| Services | Cloudinary (file uploads), Nodemailer (emails/OTP), Razorpay (payments), OpenStreetMap and Overpass (map data), Nominatim (location search), OSRM (directions) |
-| Hosting | Vercel (frontend), AWS EC2 + Docker + Nginx (backend) |
+| Frontend and build | JavaScript and JSX, React 19 for component state and UI, React Router 7 for role-based route trees, Vite 7 and its React plugin for development and production builds, Tailwind CSS 4 and its Vite plugin for styling |
+| UI and browser APIs | Lucide React for icons, react-phone-number-input for contact forms, Recharts for analytics graphs, Leaflet and React Leaflet for interactive maps, Canvas for image capture and pulse sampling, Geolocation for nearby care, Web Speech for dictation and playback, Notifications and localStorage for reminder alerts |
+| Network and real time | Axios for REST and external HTTP calls, Fetch and browser streams for AI replies, Socket.IO server and client for messaging and signaling, WebRTC and STUN for calls |
+| API and configuration | Node.js 22, Express 5, dotenv for environment configuration, cors and cookie-parser for credentialed HTTP requests, compression for HTTP payloads, Multer for multipart uploads |
+| Identity and integrity | jsonwebtoken for signed sessions, js-cookie for browser cookie access, bcrypt for patient passwords and bcryptjs for doctor and admin passwords, Node.js crypto for OTP generation and payment signatures |
+| Data and coordination | MongoDB with Mongoose for schemas, indexes, aggregation and transactions. Redis with the Node Redis client, Socket.IO Redis adapter, express-rate-limit, and rate-limit-redis for cross-instance events and shared quotas |
+| AI | Google Gemini API through `@google/generative-ai`, configured to use `gemini-2.5-flash` |
+| File storage and email | Cloudinary SDK and streamifier for uploads, Nodemailer with Gmail SMTP for account emails, reminders and admin notifications |
+| Maps and payments | OpenStreetMap tiles and Overpass hospital data, Nominatim for place lookup, OSRM for road distances and routes, Google Maps directions links, Razorpay SDK and Checkout for orders and payments |
+| Build and operations | npm lockfiles and `npm ci`, Nodemon for backend development, ESLint with React Hooks and React Refresh rules, GitHub Actions for checks, Vercel for frontend hosting, AWS EC2 with Docker Compose and Nginx for the API |
 
 ## How It Works
 
@@ -94,6 +100,46 @@ flowchart LR
 - **Socket.IO** handles live chat and sets up the video call. The video itself goes directly between the two browsers.
 - **Login** uses JWT cookies, with a separate login for each role (admin, doctor, user).
 - **Redis** shares Socket.IO events across backend instances and backs API rate limits.
+
+### Request and data flows
+
+| Workflow | How it works |
+|---|---|
+| Accounts | Email verification stages a pending patient record before account creation. MongoDB TTL fields expire pending registrations and password reset codes. Express middleware resolves role sessions for protected routes, and Socket.IO verifies a JWT during its handshake. CORS allowlists configure which browser origins can make credentialed requests. |
+| Appointment booking | The server calculates available slots and validates the selection again at booking time. One MongoDB transaction consumes consultation credits from eligible payment records, creates the appointment, and writes the ledger entry. A unique doctor/date/time index prevents two successful bookings of the same slot. A partial unique patient/date index applies the per-day constraint to paid bookings. |
+| Payments and payouts | The backend creates Razorpay orders and checks payment details and capture status. Checkout and webhook signatures use HMAC-SHA256 and timing-safe comparison, with the webhook verified against the original request bytes. A conditional update and transaction prevent duplicate credit grants when confirmation arrives through both paths. Refund and dispute events can block affected funding. Payout review uses conditional state changes, a withdrawal request key, and unique payout references to avoid duplicate processing. |
+| Chat and calls | Chat messages are stored in MongoDB and broadcast to a Socket.IO conversation room. REST endpoints return saved conversations. For meetings, the server validates the appointment and relays WebRTC offers, answers, and ICE candidates. Browsers exchange media directly when a connection can be established, keeping video traffic off the application servers. |
+| Reminders | Schedule times are evaluated in the patient's configured time zone. The browser checks for due alerts and uses localStorage to avoid repeating alerts already shown. Each backend instance runs an email scheduler, with an atomic dose-log claim and unique reminder/date/time index coordinating delivery across instances. Failed sends clear the claim so a later eligible pass can retry. |
+| Nearby care | MongoDB's `2dsphere` index and `$geoNear` find nearby AuraHealth doctors. Overpass supplies hospital locations, Nominatim resolves a searched place, and OSRM adds road distances and route geometry. The app can fall back to straight-line distances where road distances are unavailable. |
+| Analytics | MongoDB aggregation computes booking, ratings, payment and credit metrics over a selected date range. React renders the returned series in Recharts and builds the CSV export in the browser. |
+
+## How AI is used
+
+The Express backend calls Gemini using the server-side `GEMINI_API_KEY`. Each feature supplies its own prompt and input. Image and PDF features send selected files or frames as MIME-typed inline data. Triage and scanning features request JSON where the UI needs structured fields. The service parses the response, and features such as meal scanning and prescription scanning bound the size of the returned data before rendering it.
+
+| AI feature | What goes to Gemini and what happens next |
+|---|---|
+| Health assistant | The backend sends the user's prompt and, when selected, a language instruction. The streaming endpoint iterates over Gemini response chunks and emits Server-Sent Events (SSE) over an HTTP POST. The browser reads the response stream and appends chunks to the answer. Redis-backed quotas limit guest usage, and signed-in requests debit AI credits. |
+| Symptom triage | A text prompt includes the symptom description and the specialties present in the doctor directory. It requests a specialty, urgency label, and short explanation. Nearby care can use the inferred specialty when looking up doctors. |
+| Report analysis | The initial request sends the PDF with a prompt for a plain-language summary. Cloudinary stores the original, and MongoDB stores the summary, file reference and message history. For a follow-up, the current backend passes the submitted question text to Gemini and saves the exchange to the report. The separate trends flow sends dated summaries from at least two reports and returns a written comparison. |
+| Skin analysis | The service sends a photo or a sampled webcam frame with the patient's optional concern. Live analysis uses a credit-funded session with a server-checked expiry. The frontend encodes frames as JPEG, allows one analysis request at a time, and pauses AI frame submissions during pulse measurement. |
+| Prescription and medicine-label scans | Prescription scans extract readable information into editable drafts. A patient reviews the drafts before saving reminders. The label scanner extracts printed product name and strength from a package photo, then the server compares the normalized name with the patient's active reminders. |
+| Meal planner and photo scan | The planner turns diet, preferences and exclusions into breakfast, lunch and dinner ideas. The photo scanner returns recognizable foods as a bounded list that the backend deduplicates. |
+
+Browser speech recognition converts audio to text before a prompt is sent, and browser speech synthesis reads supported results aloud. The visit briefing is assembled from appointment and consented records in MongoDB. The experimental camera pulse feature uses local Canvas sampling and signal processing on a small forehead region over 30 seconds. These workflows run outside the Gemini integration.
+
+## Performance and scalability
+
+| Design choice | What it improves |
+|---|---|
+| Route-level code splitting | React `lazy` and Vite load pages on demand. Maps, charts and other page-specific code can load with the routes that need them. Selected screens use `AbortController` to cancel superseded requests and run independent requests concurrently. |
+| Compression and streaming | Express compresses eligible HTTP responses. SSE is exempted from compression, and Nginx disables proxy buffering for `/chat/stream` so generated text can reach the browser as it arrives. |
+| Targeted database work | Compound indexes cover common access patterns such as conversation history, credit history and scheduled doses. Selected service queries use field projections, read-only `lean()` results, pagination or bounded history. Aggregations compute metrics in MongoDB. |
+| Shared state across API replicas | Nginx distributes traffic between the two backend containers using IP affinity and forwards WebSocket upgrades. Redis Pub/Sub distributes socket events between instances and centralizes rate-limit counters. Durable application records are shared through MongoDB, and uploaded files go to Cloudinary. |
+| Bounded and cached external work | The maps helper caches hospital results for 10 minutes per process by rounded coordinates and radius, uses timeouts and alternate Overpass endpoints, and batches road-distance lookups through OSRM's table endpoint. Selected AI endpoints use input or upload limits, Redis throttling, AI credit checks, or session expiry to bound work. |
+| Deployment lifecycle | Compose waits for both backend containers to pass MongoDB-backed health checks before starting Nginx. The Node process handles termination signals by closing sockets, stopping the reminder scheduler and releasing database connections. CI runs frontend lint and build checks, backend syntax checks, and a Docker image build. |
+
+The Compose topology runs two API replicas on one EC2 host, so host and proxy availability remain shared. MongoDB, Redis and external-provider quotas constrain throughput as traffic grows. The hospital cache is local to each process, reminder scheduling runs in each replica, and WebRTC currently configures STUN without a TURN relay, which can limit call connectivity on restrictive networks. Some queries, including the report trends history, grow with user data. The repository configuration establishes these design properties. Throughput, latency, and failover capacity would require load and resilience measurements.
 
 ## Project Structure
 
