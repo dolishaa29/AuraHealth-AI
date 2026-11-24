@@ -111,6 +111,7 @@ const Credits = () => {
   const balance = wallet?.balance ?? 0;
   const bookingCredits = wallet?.bookingCredits ?? 0;
   const costs = wallet?.costs || {};
+  const testCheckout = wallet?.checkoutMode === "test";
 
   return (
     <div className="h-full overflow-y-auto px-4 py-6 sm:px-6 lg:px-2 lg:py-2">
@@ -132,7 +133,7 @@ const Credits = () => {
               <div className="relative flex-[1_1_260px]">
                 <p className="text-[15px] font-bold text-indigo-100">You have</p>
                 <p className="my-1 text-6xl font-extrabold tracking-[-0.04em] leading-none">{balance} <span className="text-[22px] font-bold">AI credits</span></p>
-                <p className="text-[15px] text-indigo-100">{bookingCredits} paid consultation credits available.</p>
+                <p className="text-[15px] text-indigo-100">{bookingCredits} {testCheckout ? "test" : "paid"} consultation credits available.</p>
               </div>
               <div className="relative grid grid-cols-3 gap-2.5">
                 {[
@@ -151,7 +152,10 @@ const Credits = () => {
             <section>
               <h2 className="mb-3.5 text-xl font-extrabold">Top up</h2>
               {!wallet.paymentsEnabled && (
-                <p className="mb-3.5 px-5 py-3 rounded-[20px] bg-[#FFF4E5] text-[#B45309] text-sm font-semibold">Live checkout is unavailable. Your AI credits remain usable.</p>
+                <p className="mb-3.5 px-5 py-3 rounded-[20px] bg-[#FFF4E5] text-[#B45309] text-sm font-semibold">Checkout is unavailable. Your AI credits remain usable.</p>
+              )}
+              {testCheckout && (
+                <p className="mb-3.5 px-5 py-3 rounded-[20px] bg-[#FFF4E5] text-[#B45309] text-sm font-semibold">Razorpay Test Mode. No real charge. These packs add consultation and AI credits.</p>
               )}
               <div className="grid grid-cols-[repeat(auto-fit,minmax(230px,1fr))] gap-4">
                 {wallet.packs.map((pack, i) => {
@@ -166,13 +170,13 @@ const Credits = () => {
                         disabled={!wallet.paymentsEnabled || buyingPack !== null}
                         className={`h-12 rounded-full text-[15px] font-extrabold flex items-center justify-center gap-2 disabled:opacity-50 ${s.btn}`}
                       >
-                        {buyingPack === pack.id && <Loader2 size={16} className="animate-spin" />} Pay ₹{pack.price}
+                        {buyingPack === pack.id && <Loader2 size={16} className="animate-spin" />} {testCheckout ? "Test checkout" : `Pay ₹${pack.price}`}
                       </button>
                     </div>
                   );
                 })}
               </div>
-              <p className="mt-3 text-[13px] text-[#6B6A8A]">Consultation credits become available after Razorpay confirms the payment was captured.</p>
+              {!testCheckout && <p className="mt-3 text-[13px] text-[#6B6A8A]">Consultation credits become available after Razorpay confirms the payment was captured.</p>}
             </section>
 
             <div className="flex flex-wrap gap-5 items-start">

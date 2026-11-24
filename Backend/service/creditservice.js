@@ -4,7 +4,7 @@ let Razorpay=require("razorpay");
 let Payment=require("../model/payment");
 let CreditTransaction=require("../model/creditTransaction");
 let {CREDIT_COSTS,CREDIT_PACKS,findPack,getBalance,addCredits}=require("../helper/credithelper");
-const { DOCTOR_FEE_PAISE, maxFeeForPayment, usablePayment } = require("../config/consultationPricing");
+const { maxFeeForPayment, bookingPaymentFilter } = require("../config/consultationPricing");
 
 let razorpay=null;
 
@@ -48,7 +48,11 @@ function signaturesMatch(expected,received)
 
 
 
-const liveCheckout = () => process.env.RAZORPAY_KEY_ID?.startsWith("rzp_live_") && Boolean(getRazorpay());
+function checkoutMode() {
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const mode = keyId?.startsWith("rzp_live_") ? "live" : keyId?.startsWith("rzp_test_") ? "test" : null;
+    return mode && getRazorpay() ? mode : null;
+}
 
 async function markPaidAndAddCredits(entity)
 {
@@ -67,11 +71,12 @@ async function markPaidAndAddCredits(entity)
             ? maxFeeForPayment(payment.amount, payment.credits, entity.fee) : 0;
         payment.status = "paid";
         payment.paymentId = entity.id;
-        payment.bookingCreditsRemaining = cap ? payment.credits : 0;
+        payment.bookingCreditsRemaining = payment.consultationBundle && (!payment.liveFunding || cap) ? payment.credits : 0;
         payment.maxDoctorFeePaise = cap;
         await payment.save({ session });
         const walletCredits = payment.consultationBundle ? payment.aiCredits : payment.credits;
-        if (walletCredits > 0) await addCredits(payment.user, walletCredits, "Bought credit pack", payment.orderId, session);
+        const reason = payment.consultationBundle && !payment.liveFunding ? "Test checkout" : "Bought credit pack";
+        if (walletCredits > 0) await addCredits(payment.user, walletCredits, reason, payment.orderId, session);
         return payment;
     });
 }
@@ -88,11 +93,12 @@ exports.getWallet=async(req,res)=>
         getBalance(userId),
         CreditTransaction.find({user:userId}).sort({createdAt:-1}).limit(30),
         Payment.aggregate([
-            { $match: { ...usablePayment, user: userId, maxDoctorFeePaise: { $gte: DOCTOR_FEE_PAISE } } },
+            { $match: { ...bookingPaymentFilter(), user: userId } },
             { $group: { _id: null, credits: { $sum: "$bookingCreditsRemaining" } } },
         ]),
     ]);
 
+    const mode = checkoutMode();
     return res.status(200).json({
         success:true,
         balance:balance,
@@ -100,7 +106,8 @@ exports.getWallet=async(req,res)=>
         costs:CREDIT_COSTS,
         packs:CREDIT_PACKS,
         transactions:transactions,
-        paymentsEnabled:Boolean(liveCheckout())
+        paymentsEnabled:Boolean(mode),
+        checkoutMode:mode
     });
     }
     catch(err)
@@ -124,9 +131,10 @@ exports.createOrder=async(req,res)=>
         return res.status(400).json({success:false,msg:"Please choose a valid credit pack"});
     }
 
-    if(!liveCheckout())
+    const mode = checkoutMode();
+    if(!mode)
     {
-        return res.status(503).json({success:false,msg:"Live consultation payments are unavailable."});
+        return res.status(503).json({success:false,msg:"Checkout is unavailable."});
     }
 
     const rzp = getRazorpay();
@@ -144,7 +152,7 @@ exports.createOrder=async(req,res)=>
         credits:pack.credits,
         amount:pack.price*100,
         consultationBundle:true,
-        liveFunding:true,
+        liveFunding:mode === "live",
         aiCredits:pack.aiCredits
     });
 
@@ -211,7 +219,9 @@ exports.verifyPayment=async(req,res)=>
 
     return res.status(200).json({
         success:true,
-        msg:credited.consultationBundle
+        msg:credited.consultationBundle && !credited.liveFunding
+            ? "Test payment confirmed. Consultation and AI credits are ready."
+            : credited.consultationBundle
             ? (credited.maxDoctorFeePaise ? "Payment confirmed. Consultation and AI credits are ready." : "Payment confirmed. Consultation funding is on hold for review.")
             : payment.credits+" AI credits added to your wallet",
         balance:balance

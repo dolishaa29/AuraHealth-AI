@@ -4,6 +4,13 @@ const DOCTOR_FEE_PAISE = 15000;
 const PLATFORM_RESERVE_PER_VISIT_PAISE = 10000;
 const usablePayment = { status: "paid", liveFunding: true, fundingBlocked: { $ne: true } };
 
+function bookingPaymentFilter() {
+  if (process.env.RAZORPAY_KEY_ID?.startsWith("rzp_test_")) {
+    return { ...usablePayment, liveFunding: false, consultationBundle: true };
+  }
+  return { ...usablePayment, maxDoctorFeePaise: { $gte: DOCTOR_FEE_PAISE } };
+}
+
 function maxFeeForPayment(amountPaise, credits, providerFeePaise) {
   const visits = credits / BOOKING_CREDITS;
   if (!Number.isSafeInteger(visits) || visits < 1) return 0;
@@ -15,4 +22,4 @@ function maxFeeForPayment(amountPaise, credits, providerFeePaise) {
   return amountPaise - gatewayFee >= requiredFunding ? DOCTOR_FEE_PAISE : 0;
 }
 
-module.exports = { BOOKING_CREDITS, CONSULTATION_CREDIT_PRICE_PAISE, DOCTOR_FEE_PAISE, maxFeeForPayment, usablePayment };
+module.exports = { BOOKING_CREDITS, CONSULTATION_CREDIT_PRICE_PAISE, DOCTOR_FEE_PAISE, maxFeeForPayment, usablePayment, bookingPaymentFilter };

@@ -4,7 +4,7 @@ let rec=require("../model/doctor");
 const Report = require("../model/report");
 const { connection, isValidObjectId } = require("mongoose");
 const Payment = require("../model/payment");
-const { DOCTOR_FEE_PAISE, usablePayment } = require("../config/consultationPricing");
+const { DOCTOR_FEE_PAISE, bookingPaymentFilter } = require("../config/consultationPricing");
 const DoseLog = require("../model/doseLog");
 const { addDays, isValidDate, isValidTime, localDateTime } = require("../helper/reminderhelper");
 const { CREDIT_COSTS } = require("../helper/credithelper");
@@ -157,16 +157,15 @@ exports.bookSlot = async (req, res) => {
       const taken = await rec5.exists({ doctorid, date, time }).session(session);
       if (taken) return { status: 409, msg: "This slot was just taken. Please choose another." };
       const backing = await Payment.findOneAndUpdate({
-        ...usablePayment,
+        ...bookingPaymentFilter(),
         user: user._id,
         bookingCreditsRemaining: { $gte: cost },
-        maxDoctorFeePaise: { $gte: DOCTOR_FEE_PAISE },
       }, { $inc: { bookingCreditsRemaining: -cost } }, { sort: { createdAt: 1, _id: 1 }, session });
-      if (!backing) return { status: 402, msg: `Booking requires ${cost} consultation credits from a verified live purchase.` };
+      if (!backing) return { status: 402, msg: `Booking requires ${cost} consultation credits.` };
       const appointment = new rec5({
         userid: String(user._id), name: user.name, email: user.email,
         doctorid, doctormail: doctor.email, description: description.trim(), date, time,
-        payoutFeePaise: DOCTOR_FEE_PAISE, payoutFundingPayment: backing._id,
+        payoutFeePaise: backing.liveFunding ? DOCTOR_FEE_PAISE : 0, payoutFundingPayment: backing._id,
       });
       await appointment.save({ session });
       return { status: 201, msg: "Appointment booked successfully!" };
