@@ -4,6 +4,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { Users, UserPlus, Stethoscope, AlertCircle, RefreshCw, CalendarCheck, ChevronRight } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import DashboardAnalytics from "../components/DashboardAnalytics";
 
 const TILES = [
   { key: "pendingRequests", label: "doctor requests waiting", icon: UserPlus, bg: "bg-[#FFF4E5]", fg: "text-[#B45309]", path: "/Doctorrequest" },
@@ -55,7 +56,7 @@ const Admindashboard = () => {
       <div className="flex flex-col gap-[22px] pb-16">
         <div>
           <h1 className="text-[28px] sm:text-[32px] font-extrabold tracking-[-0.025em]">Hello, Admin</h1>
-          <p className="mt-1.5 text-[15px] text-[#6B6A8A]">Here's how AuraHealth is doing today.</p>
+          {data?.email && <p className="mt-1.5 text-[15px] text-[#6B6A8A]">{data.email}</p>}
         </div>
 
         {error && (
@@ -103,6 +104,8 @@ const Admindashboard = () => {
             </span>
           </button>
         </div>
+
+        <DashboardAnalytics role="admin" />
 
         <div className="flex flex-wrap gap-5 items-start">
           <section className="flex-[999_1_460px] min-w-0 bg-white rounded-[28px] p-6 shadow-[0_8px_30px_rgba(79,70,229,0.06)]">

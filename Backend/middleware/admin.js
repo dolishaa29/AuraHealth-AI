@@ -7,6 +7,7 @@ async function auth(req, res, next) {
 
     if (token != undefined && token != "") {
       const data = jwt.verify(token, process.env.JWT_SECRET);
+      if (data.role !== "admin") return res.status(401).json({ msg: "Sign in again as an admin.", expired: true });
       let admin = await adminmodel.findOne({ email: data.token });
 
       if (!admin) return res.status(403).json({ msg: "admin not found" });

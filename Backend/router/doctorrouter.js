@@ -5,6 +5,7 @@ const { doctorregister , doctorlogin,doctorlogout,doctorprofile, doctorlist, doc
 const { blockdoctor } = require("../service/doctorservice");
 const upload = require("../middleware/multer");
 const cloudinary = require("../config/cloudinary");
+const { doctorAnalytics } = require("../service/dashboardAnalytics");
 
 
 
@@ -17,6 +18,7 @@ router.post("/doctorpermission",upload.single("certificate"),doctorpermission);
 router.get("/doctorrequest",doctorrequest);
 router.put("/doctorpermissionupdate",doctorpermissionupdate);
 router.get("/doctordashboard",auths,doctorDashboard);
+router.get("/doctor/analytics",auths,doctorAnalytics);
 router.get("/doctorviewapp",auths,doctorviewapp);
 router.put("/updatedoctor",auths,upload.single("image"),doctorupdate);
 router.put("/changepassword",auths,changePassword);

@@ -202,7 +202,7 @@ if (data.doctorstatus === "block") {
 
  if(pass)
  {
-    let token=jwt.sign({token:data.email},process.env.JWT_SECRET,{
+    let token=jwt.sign({token:data.email,role:"doctor"},process.env.JWT_SECRET,{
         expiresIn:"1d"
     });
     return res.status(200).json({success: true,msg:'doctor login successfully',token});

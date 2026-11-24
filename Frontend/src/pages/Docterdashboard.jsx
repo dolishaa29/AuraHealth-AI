@@ -4,6 +4,7 @@ import Cookies from 'js-cookie';
 import { useNavigate } from 'react-router-dom';
 import { CalendarCheck, CalendarClock, CheckCircle2, Users, Video, MessageCircle, Sparkles, Loader2, AlertCircle, RefreshCw, Check } from 'lucide-react';
 import { todayStr, formatTime } from '../utils/time';
+import DashboardAnalytics from '../components/DashboardAnalytics';
 
 const API = import.meta.env.VITE_API_URL;
 const authConfig = () => ({ headers: { Authorization: `Bearer ${Cookies.get("emstoken")}` }, withCredentials: true });
@@ -45,9 +46,13 @@ const Docterdashboard = () => {
     setBriefing({ loading: true, text: "", forId: appointment._id });
     try {
       const res = await axios.get(`${API}/appointment/${appointment._id}/briefing`, authConfig());
-      setBriefing({ loading: false, text: res.data.text, forId: appointment._id });
+      setBriefing((current) => current.forId === appointment._id
+        ? { loading: false, data: res.data, forId: appointment._id }
+        : current);
     } catch {
-      setBriefing({ loading: false, text: "Couldn't prepare a briefing right now. Please try again.", forId: appointment._id });
+      setBriefing((current) => current.forId === appointment._id
+        ? { loading: false, text: "Couldn't prepare a briefing right now. Please try again.", forId: appointment._id }
+        : current);
     }
   };
 
@@ -127,16 +132,29 @@ const Docterdashboard = () => {
             </div>
             {briefing.loading
               ? <p className="flex items-center gap-2 text-sm text-[#9A3412]"><Loader2 size={15} className="animate-spin" /> Reading past reports and visits…</p>
-              : <p className="text-[15px] leading-relaxed text-[#7C2D12] whitespace-pre-wrap">{briefing.text}</p>}
+              : briefing.data ? (
+                <div className="grid gap-2 text-sm text-[#7C2D12]">
+                  <p><strong>Reason for visit</strong> · {briefing.data.reason || "No reason provided."}</p>
+                  {briefing.data.recordsShared ? (
+                    <>
+                      <p>{briefing.data.reports.length} recent shared reports</p>
+                      {briefing.data.adherence && <p>Last seven days · {briefing.data.adherence.taken} doses marked taken · {briefing.data.adherence.skipped} marked skipped</p>}
+                      <button onClick={() => navigate('/doctorviewapp')} className="justify-self-start font-bold underline">Open appointments to view reports</button>
+                    </>
+                  ) : <p>The patient hasn’t shared records for this visit.</p>}
+                </div>
+              ) : <p role="alert" className="text-sm text-[#7C2D12]">{briefing.text}</p>}
           </section>
         )}
 
         <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
           <Tile onClick={() => navigate('/doctorviewapp')} bg="bg-[#EEEDFF]" fg="text-[#3730A3]" icon={CalendarCheck} value={todays.length} label="patients today" />
           <Tile onClick={() => navigate('/doctorviewapp')} bg="bg-[#E6F1FF]" fg="text-[#1E40AF]" icon={CalendarClock} value={upcoming.length} label="upcoming visits" />
-          <Tile onClick={() => navigate('/doctorviewapp')} bg="bg-[#E7F7EF]" fg="text-[#05603A]" icon={CheckCircle2} value={past.length} label="visits completed" />
+          <Tile onClick={() => navigate('/doctorviewapp')} bg="bg-[#E7F7EF]" fg="text-[#05603A]" icon={CheckCircle2} value={past.length} label="past bookings" />
           <Tile onClick={() => navigate('/doctorchat')} bg="bg-[#FFF0E6]" fg="text-[#9A3412]" icon={Users} value={patients} label="patients in total" />
         </div>
+
+        <DashboardAnalytics role="doctor" />
 
         <div className="flex flex-wrap gap-5 items-start">
 

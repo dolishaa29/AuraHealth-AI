@@ -22,24 +22,21 @@ return res.status(201).json({success: true,msg:'admin already registered'})
 
 exports.adminlogin=async(req,res)=>
 {
-let email=req.body.email;
-let password=req.body.password;
-console.log(email,password);
-let data=await rec.findOne({email:email});
-console.log(data);
+const { email, password } = req.body || {};
+if (typeof email !== "string" || !email.trim() || typeof password !== "string" || !password) {
+  return res.status(400).json({ success: false, msg: "Enter your email and password." });
+}
+const data=await rec.findOne({email:email.trim()});
 if(!data)
 {
 return res.status(404).json({success: false,msg:'admin not found'})
 }
-lpass=data.password;
-console.log(lpass);
-pass=await bct.compare(password,lpass);
+const pass=await bct.compare(password,data.password);
 if(pass)
 {
-let token=jwt.sign({token:data.email},process.env.JWT_SECRET,{
+const token=jwt.sign({token:data.email,role:"admin"},process.env.JWT_SECRET,{
 expiresIn:"1d"
 });
-console.log("send token"+token);
 return res.status(200).json({success: true,msg:'admin login successfully',token})
 }
 else
