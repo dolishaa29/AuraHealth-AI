@@ -243,7 +243,6 @@ GitHub Actions runs frontend lint and build checks, backend syntax checks, and a
 
 - [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md) — what each file does
 - [docs/uml.md](docs/uml.md) — UML diagrams (use case, sequence, class and more)
-- [docs/INTERVIEW_PREP.md](docs/INTERVIEW_PREP.md) — why each technology was chosen
 
 ## License
 

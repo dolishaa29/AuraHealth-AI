@@ -7,8 +7,7 @@ health/
 ├── README.md
 ├── docs/
 │   ├── uml.md                           # Eight UML diagrams modeling the real routes/services/schemas
-│   ├── PROJECT_STRUCTURE.md             # This file
-│   └── INTERVIEW_PREP.md                # Tech-stack rationale, trade-offs, anticipated Q&A
+│   └── PROJECT_STRUCTURE.md             # This file
 ├── Backend/
 │   ├── index.js                         # Express app entry point — CORS, body parsing, mounts all routers, boots Socket.IO
 │   ├── dbconnection.js                  # Mongoose connection setup
