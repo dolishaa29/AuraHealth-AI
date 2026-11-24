@@ -3,7 +3,7 @@ import axios from "axios";
 import Cookies from "js-cookie";
 import { useNavigate } from "react-router-dom";
 import { Video, MessageCircle, Sparkles, Loader2, CalendarCheck, Mail } from "lucide-react";
-import { formatTime } from "../utils/time";
+import { formatDate, formatTime } from "../utils/time";
 
 const API = import.meta.env.VITE_API_URL;
 const authConfig = () => ({ headers: { Authorization: `Bearer ${Cookies.get("emstoken")}` }, withCredentials: true });
@@ -23,7 +23,8 @@ const Doctorviewapp = () => {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("upcoming");
   const [now] = useState(() => Date.now());
-  const [briefing, setBriefing] = useState({ forId: null, loading: false, text: "" });
+  const [briefingId, setBriefingId] = useState(null);
+  const [briefing, setBriefing] = useState(null);
 
   useEffect(() => {
     axios.get(`${API}/doctorviewapp`, authConfig())
@@ -31,6 +32,19 @@ const Doctorviewapp = () => {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!briefingId) return;
+    const controller = new AbortController();
+    axios.get(`${API}/appointment/${briefingId}/briefing`, { ...authConfig(), signal: controller.signal })
+      .then(({ data }) => {
+        if (!controller.signal.aborted) setBriefing({ data });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setBriefing({ error: "Couldn't load the brief. Close it and try again." });
+      });
+    return () => controller.abort();
+  }, [briefingId]);
 
   const { upcoming, past } = useMemo(() => {
     const cutoff = now - 60 * 60 * 1000;
@@ -42,34 +56,66 @@ const Doctorviewapp = () => {
   const next = upcoming[0];
   const list = tab === "upcoming" ? upcoming.slice(1) : past;
 
-  const toggleBriefing = async (a) => {
-    if (briefing.forId === a._id) { setBriefing({ forId: null, loading: false, text: "" }); return; }
-    setBriefing({ forId: a._id, loading: true, text: "" });
-    try {
-      const res = await axios.get(`${API}/appointment/${a._id}/briefing`, authConfig());
-      setBriefing({ forId: a._id, loading: false, text: res.data.text });
-    } catch {
-      setBriefing({ forId: a._id, loading: false, text: "Couldn't prepare a briefing right now." });
-    }
+  const toggleBriefing = (appointmentId) => {
+    setBriefing(null);
+    setBriefingId((current) => current === appointmentId ? null : appointmentId);
   };
 
-  const briefingBox = (a) => briefing.forId === a._id && (
-    <div className="w-full mt-1 p-4 rounded-[20px] bg-[#FFF0E6] text-[#7C2D12] text-sm leading-relaxed whitespace-pre-wrap">
-      {briefing.loading ? <span className="flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Reading past reports and visits…</span> : briefing.text}
-    </div>
-  );
+  const briefingBox = (a) => {
+    if (briefingId !== a._id) return null;
+    const data = briefing?.data;
+    return (
+      <section id={`briefing-${a._id}`} aria-label="Pre-consultation brief" className="w-full grid gap-4 p-5 rounded-[20px] bg-white text-[#312E81] text-sm">
+        {!briefing && <p role="status" className="flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Loading brief…</p>}
+        {briefing?.error && <p role="alert">{briefing.error}</p>}
+        {data && (
+          <>
+            <div>
+              <h3 className="font-extrabold">Reason for visit</h3>
+              <p className="whitespace-pre-wrap break-words">{data.reason || "No reason provided."}</p>
+            </div>
+            {data.recordsShared ? (
+              <>
+                <div>
+                  <h3 className="font-extrabold">Recent shared reports</h3>
+                  {data.reports.length === 0 && <p>No reports on file.</p>}
+                  {data.reports.map((report) => (
+                    <details key={report._id} className="mt-2 rounded-xl bg-[#F6F6FD] p-3">
+                      <summary className="cursor-pointer font-semibold break-words">
+                        {report.title} · {formatDate(report.createdAt.slice(0, 10))}
+                      </summary>
+                      <p className="mt-2 whitespace-pre-wrap break-words">{report.summary || "No saved summary."}</p>
+                      {report.fileUrl?.startsWith("https://") && (
+                        <a href={report.fileUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block font-bold text-indigo-700 underline">Open original report</a>
+                      )}
+                    </details>
+                  ))}
+                </div>
+                {data.adherence && (
+                  <div>
+                    <h3 className="font-extrabold">Medication dose logs</h3>
+                    <p>{formatDate(data.adherence.startDate)} – {formatDate(data.adherence.endDate)}</p>
+                    <p>{data.adherence.taken} marked taken · {data.adherence.skipped} marked skipped</p>
+                  </div>
+                )}
+              </>
+            ) : <p className="text-[#6B6A8A]">The patient hasn’t shared records for this visit.</p>}
+          </>
+        )}
+      </section>
+    );
+  };
 
   return (
     <div className="h-full overflow-y-auto px-4 py-6 sm:px-6 lg:px-2 lg:py-2">
       <div className="flex flex-col gap-[22px] pb-16">
         <div>
           <h1 className="text-[28px] sm:text-[32px] font-extrabold tracking-[-0.025em]">Your appointments</h1>
-          <p className="mt-1.5 text-[15px] text-[#6B6A8A]">Every patient visit, with an AI briefing one tap away.</p>
         </div>
 
         <div role="tablist" aria-label="Appointments" className="self-start inline-flex gap-1 p-1.5 rounded-full bg-white shadow-[0_8px_30px_rgba(79,70,229,0.06)]">
           {[["upcoming", `Upcoming · ${upcoming.length}`], ["past", `Past · ${past.length}`]].map(([id, label]) => (
-            <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
+            <button key={id} role="tab" aria-selected={tab === id} onClick={() => { setTab(id); setBriefingId(null); }}
               className={`h-10 px-5 rounded-full text-sm font-bold ${tab === id ? "bg-indigo-600 text-white" : "text-[#4B4A6B] hover:text-indigo-600"}`}>{label}</button>
           ))}
         </div>
@@ -103,7 +149,7 @@ const Doctorviewapp = () => {
                     className="h-12 px-[22px] rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-[15px] font-bold flex items-center gap-2 disabled:opacity-50">
                     <Video size={18} /> {canStart(next) ? "Start call" : "Opens 10 min before"}
                   </button>
-                  <button onClick={() => toggleBriefing(next)} className="h-12 px-5 rounded-full bg-white text-[#312E81] text-[15px] font-bold flex items-center gap-2"><Sparkles size={17} /> Briefing</button>
+                  <button onClick={() => toggleBriefing(next._id)} aria-expanded={briefingId === next._id} className="h-12 px-5 rounded-full bg-white text-[#312E81] text-[15px] font-bold flex items-center gap-2"><Sparkles size={17} /> {briefingId === next._id ? "Hide brief" : "Visit brief"}</button>
                   <button onClick={() => navigate("/doctorchat")} className="h-12 px-5 rounded-full bg-white text-[#312E81] text-[15px] font-bold flex items-center gap-2"><MessageCircle size={17} /> Message</button>
                 </div>
                 <div className="relative w-full">{briefingBox(next)}</div>
@@ -126,8 +172,8 @@ const Doctorviewapp = () => {
                         <p className="text-[15px] font-extrabold truncate">{a.name || a.email}</p>
                         <p className="text-[13px] text-[#6B6A8A] truncate">{formatTime(a.time)}{a.description ? ` · ${a.description}` : ""}</p>
                       </div>
-                      <button onClick={() => toggleBriefing(a)} className="h-10 px-4 rounded-full bg-white text-[#3730A3] text-sm font-bold flex items-center gap-1.5">
-                        <Sparkles size={14} /> {briefing.forId === a._id ? "Hide" : "Briefing"}
+                      <button onClick={() => toggleBriefing(a._id)} aria-expanded={briefingId === a._id} className="h-10 px-4 rounded-full bg-white text-[#3730A3] text-sm font-bold flex items-center gap-1.5">
+                        <Sparkles size={14} /> {briefingId === a._id ? "Hide brief" : "Visit brief"}
                       </button>
                       {briefingBox(a)}
                     </div>

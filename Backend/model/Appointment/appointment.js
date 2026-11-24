@@ -8,6 +8,7 @@ doctormail:{type:String},
 description:{type:String},
 date:{type:String},
 time:{type:String},
+shareBriefingRecords:{type:Boolean,default:false},
 });
 app.index({ doctorid: 1, date: 1, time: 1 }, { unique: true });
 app.index({ userid: 1 });

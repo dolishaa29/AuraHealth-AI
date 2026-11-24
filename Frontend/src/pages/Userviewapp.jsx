@@ -6,6 +6,8 @@ import { Plus, Video, MessageCircle, Star, CalendarCheck, Loader2 } from 'lucide
 import { formatTime } from '../utils/time';
 
 const CARD = "bg-white rounded-[28px] shadow-[0_8px_30px_rgba(79,70,229,0.06)]";
+const API = import.meta.env.VITE_API_URL;
+const authConfig = () => ({ headers: { Authorization: `Bearer ${Cookies.get("token")}` }, withCredentials: true });
 const when = (a) => new Date(`${a.date}T${a.time}`);
 const dateBits = (a) => {
   const d = new Date(a.date);
@@ -22,10 +24,12 @@ const Userviewapp = () => {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('upcoming');
   const [now] = useState(() => Date.now());
+  const [sharingId, setSharingId] = useState(null);
+  const [sharingError, setSharingError] = useState("");
 
   useEffect(() => {
     axios
-      .get(`${import.meta.env.VITE_API_URL}/userviewapp`, { headers: { Authorization: `Bearer ${Cookies.get("token")}` }, withCredentials: true })
+      .get(`${API}/userviewapp`, authConfig())
       .then((res) => setAppointments(res.data.appointments || []))
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -43,6 +47,32 @@ const Userviewapp = () => {
   const next = upcoming[0];
   const list = tab === 'upcoming' ? upcoming.slice(1) : past;
   const canJoin = (a) => now >= when(a).getTime() - 10 * 60 * 1000;
+
+  const updateSharing = async (appointment, shareBriefingRecords) => {
+    setSharingId(appointment._id);
+    setSharingError("");
+    try {
+      const { data } = await axios.put(`${API}/appointment/${appointment._id}/briefing-sharing`, { shareBriefingRecords }, authConfig());
+      setAppointments((items) => items.map((item) =>
+        item._id === appointment._id ? { ...item, shareBriefingRecords: data.shareBriefingRecords } : item
+      ));
+    } catch {
+      setSharingError("Couldn't update record sharing. Please try again.");
+    } finally {
+      setSharingId(null);
+    }
+  };
+
+  const sharingControl = (appointment) => (
+    <label className="flex w-full items-start gap-2.5 rounded-2xl bg-white p-3 text-sm text-[#4B4A6B]">
+      <input type="checkbox" className="mt-1 accent-indigo-600" checked={appointment.shareBriefingRecords === true}
+        disabled={sharingId !== null} onChange={(event) => updateSharing(appointment, event.target.checked)} />
+      <span>
+        <strong className="block text-[#312E81]">Share records for this visit</strong>
+        Let this doctor see your five most recent reports and seven days of dose-log totals.
+      </span>
+    </label>
+  );
 
   return (
     <div className="h-full overflow-y-auto px-4 py-6 sm:px-6 lg:px-2 lg:py-2">
@@ -66,6 +96,7 @@ const Userviewapp = () => {
           ))}
         </div>
 
+        {sharingError && <p role="alert" className="text-sm text-[#B42318]">{sharingError}</p>}
         {loading ? (
           <div className="flex items-center gap-2 text-[#6B6A8A] text-sm"><Loader2 size={16} className="animate-spin" /> Loading…</div>
         ) : appointments.length === 0 ? (
@@ -97,6 +128,7 @@ const Userviewapp = () => {
                   </button>
                   <button onClick={() => navigate('/userchat')} className="h-12 px-5 rounded-full bg-white text-[#312E81] text-[15px] font-bold flex items-center gap-2"><MessageCircle size={18} /> Message</button>
                 </div>
+                <div className="relative w-full">{sharingControl(next)}</div>
               </section>
             )}
 
@@ -120,6 +152,7 @@ const Userviewapp = () => {
                       ) : (
                         <span className="px-3.5 py-1.5 rounded-full bg-white text-[#05603A] text-[13px] font-extrabold">Confirmed</span>
                       )}
+                      {sharingControl(a)}
                     </div>
                   );
                 })}
