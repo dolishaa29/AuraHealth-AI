@@ -5,6 +5,7 @@ const Withdrawal = require("../model/doctorWithdrawal");
 const Payment = require("../model/payment");
 const { BOOKING_CREDITS, DOCTOR_FEE_PAISE, usablePayment } = require("../config/consultationPricing");
 const { localDateTime } = require("../helper/reminderhelper");
+const notifyAdmin = require("../helper/adminNotification");
 
 const HOLD_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_PAISE = 100000000;
@@ -102,8 +103,13 @@ exports.requestWithdrawal = async (req, res) => {
     if (amountPaise > summary.available) return fail(409, "That amount exceeds your available earnings.");
     const withdrawal = new Withdrawal({ doctor, amountPaise, requestKey });
     await withdrawal.save({ session });
-    return { withdrawal };
+    return { withdrawal, created: true };
   });
+  if (result.created) {
+    await notifyAdmin("Doctor withdrawal awaiting review",
+      `A doctor requested a withdrawal of ₹${(amountPaise / 100).toFixed(2)}. Request ID: ${result.withdrawal._id}.`, "/Admindashboard");
+    return res.json({ withdrawal: result.withdrawal });
+  }
   return reply(res, result);
 };
 

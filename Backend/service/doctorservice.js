@@ -9,6 +9,7 @@ const nodemailer = require("nodemailer");
 const cloudinary=require("../config/cloudinary")
 const axios = require("axios");
 let {emailTemplate,indiaTime}=require("../helper/emailtemplate");
+const notifyAdmin = require("../helper/adminNotification");
 
 async function geocodeAddress(address) {
     try {
@@ -89,6 +90,7 @@ if (already && (already.permission === "pending" || already.permission === "appr
             }
             throw err;
         }
+        await notifyAdmin("Doctor application awaiting review", `A new doctor application is pending approval. Application ID: ${newdoctor._id}.`, "/Doctorrequest");
         return res.status(201).json({success: true,msg:'doctor registered , approval pending'})
     }
 }
