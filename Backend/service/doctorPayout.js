@@ -3,41 +3,48 @@ const Doctor = require("../model/doctor");
 const Appointment = require("../model/Appointment/appointment");
 const Withdrawal = require("../model/doctorWithdrawal");
 const Payment = require("../model/payment");
-const { BOOKING_CREDITS, DOCTOR_FEE_PAISE } = require("../config/consultationPricing");
+const { BOOKING_CREDITS, DOCTOR_FEE_PAISE, usablePayment } = require("../config/consultationPricing");
 const { localDateTime } = require("../helper/reminderhelper");
 
 const HOLD_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_PAISE = 100000000;
-const earningsFields = "date time doctorid doctormail payoutFeePaise payoutCompletedAt payoutHeld";
+const earningsFields = { date: 1, time: 1, doctorid: 1, doctormail: 1, payoutFeePaise: 1, payoutCompletedAt: 1, payoutHeld: 1 };
+const fundedAppointment = { payoutFeePaise: { $gt: 0 }, payoutFundingPayment: { $type: "objectId" } };
+const completedAppointment = { payoutCompletedAt: { $type: "date" } };
 const withdrawalFields = "doctor amountPaise status reference note createdAt reviewedAt";
+const withdrawalTransitions = new Map([
+  ["processing", "requested"],
+  ["paid", "processing"],
+  ["rejected", { $in: ["requested", "processing"] }],
+]);
 const validAmount = (amount, min) => Number.isSafeInteger(amount) && amount >= min && amount <= MAX_PAISE;
 const fail = (status, msg) => ({ status, msg });
 const reply = (res, value) => value.msg ? res.status(value.status).json({ msg: value.msg }) : res.json(value);
 const fundingLookup = [
   { $lookup: {
     from: Payment.collection.name, localField: "payoutFundingPayment", foreignField: "_id",
-    pipeline: [{ $match: { status: "paid", liveFunding: true, fundingBlocked: { $ne: true } } },
+    pipeline: [{ $match: usablePayment },
       { $project: { maxDoctorFeePaise: 1 } }],
     as: "funding",
   } },
-  { $match: { $expr: { $gte: [{ $ifNull: [{ $arrayElemAt: ["$funding.maxDoctorFeePaise", 0] }, 0] }, "$payoutFeePaise"] } } },
+  { $unwind: "$funding" },
+  { $match: { $expr: { $gte: ["$funding.maxDoctorFeePaise", "$payoutFeePaise"] } } },
 ];
 
 function fundedVisits(match, sort, limit) {
   return Appointment.aggregate([
-    { $match: { ...match, payoutFeePaise: { $gt: 0 }, payoutFundingPayment: { $type: "objectId" } } },
+    { $match: { ...match, ...fundedAppointment } },
     { $sort: sort },
     ...fundingLookup,
     { $limit: limit },
-    { $project: Object.fromEntries(earningsFields.split(" ").map((field) => [field, 1])) },
+    { $project: earningsFields },
   ]);
 }
 
 async function balances(doctorId, session = null) {
   const cutoff = new Date(Date.now() - HOLD_MS);
   const [earnings = {}] = await Appointment.aggregate([
-    { $match: { doctorid: String(doctorId), payoutFeePaise: { $gt: 0 }, payoutCompletedAt: { $type: "date" },
-      payoutFundingPayment: { $type: "objectId" } } },
+    { $match: { doctorid: String(doctorId), ...completedAppointment, ...fundedAppointment } },
     ...fundingLookup,
     { $group: {
       _id: null,
@@ -60,6 +67,7 @@ async function balances(doctorId, session = null) {
 }
 
 function lockDoctor(doctorId, session) {
+  // Concurrent payout changes for this doctor must write the same document.
   return Doctor.updateOne({ _id: doctorId }, { $inc: { payoutRevision: 1 } }, { session });
 }
 
@@ -74,7 +82,7 @@ exports.getDoctorPayout = async (req, res) => {
   const id = req.doctor._id;
   const [summary, earnings, withdrawals] = await Promise.all([
     balances(id),
-    fundedVisits({ doctorid: String(id), payoutCompletedAt: { $type: "date" } }, { payoutCompletedAt: -1 }, 30),
+    fundedVisits({ doctorid: String(id), ...completedAppointment }, { payoutCompletedAt: -1 }, 30),
     Withdrawal.find({ doctor: id }).select(withdrawalFields).sort({ createdAt: -1 }).limit(30).lean(),
   ]);
   return res.json({ summary, earnings, withdrawals, fee: DOCTOR_FEE_PAISE });
@@ -105,7 +113,7 @@ exports.getAdminPayoutQueue = async (req, res) => {
   const eligible = { $or: [{ date: { $lt: cutoff.date } }, { date: cutoff.date, time: { $lte: cutoff.time } }] };
   const [visits, completed, pending, reviewed] = await Promise.all([
     fundedVisits({ payoutCompletedAt: null, payoutDeclinedAt: null, ...eligible }, { date: 1, time: 1 }, 40),
-    fundedVisits({ payoutCompletedAt: { $type: "date" } }, { payoutCompletedAt: -1 }, 30),
+    fundedVisits(completedAppointment, { payoutCompletedAt: -1 }, 30),
     Withdrawal.find({ status: { $in: ["requested", "processing"] } }).select(`${withdrawalFields} reviewedBy`).sort({ createdAt: 1 }).limit(40).populate("doctor", "name email").lean(),
     Withdrawal.find({ status: { $in: ["paid", "rejected"] } }).select(withdrawalFields).sort({ reviewedAt: -1 }).limit(30).populate("doctor", "name email").lean(),
   ]);
@@ -120,8 +128,8 @@ exports.reviewVisit = async (req, res) => {
   if (!mongoose.isObjectIdOrHexString(id) || !["complete", "no-show", "hold", "release"].includes(action)) {
     return res.status(400).json({ msg: "Choose a valid visit and action." });
   }
-  const appointment = await Appointment.findOne({ _id: id, payoutFeePaise: { $gt: 0 }, payoutFundingPayment: { $type: "objectId" } })
-    .select(`${earningsFields} +payoutFundingPayment`).lean();
+  const appointment = await Appointment.findOne({ _id: id, ...fundedAppointment })
+    .select({ ...earningsFields, payoutFundingPayment: 1 }).lean();
   if (!appointment || !mongoose.isObjectIdOrHexString(appointment.doctorid)) return res.status(404).json({ msg: "Funded visit not found." });
   const now = new Date();
   const scheduled = Date.parse(`${appointment.date}T${appointment.time}:00+05:30`);
@@ -132,7 +140,8 @@ exports.reviewVisit = async (req, res) => {
     const result = await mongoose.connection.transaction(async (session) => {
       await lockDoctor(appointment.doctorid, session);
       const funding = {
-        _id: appointment.payoutFundingPayment, status: "paid", liveFunding: true, fundingBlocked: { $ne: true },
+        ...usablePayment,
+        _id: appointment.payoutFundingPayment,
         maxDoctorFeePaise: { $gte: appointment.payoutFeePaise },
       };
       if (action === "complete" && !await Payment.exists(funding).session(session)) {
@@ -170,7 +179,8 @@ exports.reviewVisit = async (req, res) => {
 exports.reviewWithdrawal = async (req, res) => {
   const { id } = req.params;
   const { status, reference, note } = req.body || {};
-  if (!mongoose.isObjectIdOrHexString(id) || !["processing", "paid", "rejected"].includes(status)
+  const allowedStatus = withdrawalTransitions.get(status);
+  if (!mongoose.isObjectIdOrHexString(id) || !allowedStatus
     || (status === "paid" && (typeof reference !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._/-]{2,99}$/.test(reference.trim())))
     || (status === "rejected" && (typeof note !== "string" || !note.trim() || note.length > 250))) {
     return res.status(400).json({ msg: "Enter a valid payment reference or a rejection reason." });
@@ -181,19 +191,19 @@ exports.reviewWithdrawal = async (req, res) => {
   try {
     const result = await mongoose.connection.transaction(async (session) => {
       await lockDoctor(item.doctor, session);
-      const allowedStatus = status === "processing" ? "requested" : status === "paid" ? "processing" : { $in: ["requested", "processing"] };
       const withdrawal = await Withdrawal.findOne({ _id: id, status: allowedStatus }).session(session);
       if (!withdrawal) return fail(409, "This withdrawal has already been reviewed.");
       if (withdrawal.status === "processing" && String(withdrawal.reviewedBy) !== String(req.admin._id)) {
         return fail(409, "This transfer is assigned to another admin.");
       }
-      if (status === "processing" || status === "paid") {
+      if (status !== "rejected") {
         const summary = await balances(item.doctor, session);
         if (summary.cleared - summary.paid < summary.reserved) {
           return fail(409, "Cleared earnings no longer cover reserved withdrawals. Review the holds before recording payment.");
         }
-        if (status === "paid") withdrawal.reference = reference.trim().toUpperCase();
-      } else withdrawal.note = note.trim();
+      }
+      if (status === "paid") withdrawal.reference = reference.trim().toUpperCase();
+      if (status === "rejected") withdrawal.note = note.trim();
       withdrawal.status = status;
       withdrawal.reviewedAt = new Date();
       withdrawal.reviewedBy = req.admin._id;

@@ -4,7 +4,7 @@ let Razorpay=require("razorpay");
 let Payment=require("../model/payment");
 let CreditTransaction=require("../model/creditTransaction");
 let {CREDIT_COSTS,CREDIT_PACKS,findPack,getBalance,addCredits}=require("../helper/credithelper");
-const { DOCTOR_FEE_PAISE, maxFeeForPayment } = require("../config/consultationPricing");
+const { DOCTOR_FEE_PAISE, maxFeeForPayment, usablePayment } = require("../config/consultationPricing");
 
 let razorpay=null;
 
@@ -88,7 +88,7 @@ exports.getWallet=async(req,res)=>
         getBalance(userId),
         CreditTransaction.find({user:userId}).sort({createdAt:-1}).limit(30),
         Payment.aggregate([
-            { $match: { user: userId, status: "paid", liveFunding: true, fundingBlocked: { $ne: true }, maxDoctorFeePaise: { $gte: DOCTOR_FEE_PAISE } } },
+            { $match: { ...usablePayment, user: userId, maxDoctorFeePaise: { $gte: DOCTOR_FEE_PAISE } } },
             { $group: { _id: null, credits: { $sum: "$bookingCreditsRemaining" } } },
         ]),
     ]);
