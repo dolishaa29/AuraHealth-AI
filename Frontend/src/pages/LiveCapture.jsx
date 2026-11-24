@@ -1,6 +1,9 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Video, VideoOff, Camera, Scan, Loader2, Sparkles } from 'lucide-react';
 import Cookies from 'js-cookie';
+import VoiceInput, { VoiceLanguage } from '../components/VoiceInput';
+import CameraPulse from '../components/CameraPulse';
+import { forehead } from '../utils/cameraPulse';
 
 const LiveCapture = () => {
 
@@ -9,6 +12,10 @@ const LiveCapture = () => {
   const streamRef = useRef(null);
   const intervalRef = useRef(null);
   const analysisTimerRef = useRef(null);
+  const firstAnalysisRef = useRef(null);
+  const requestRef = useRef(null);
+  const measuringRef = useRef(false);
+  const settingsRef = useRef({ language: 'en-IN', concern: '' });
 
   const [isStreaming, setIsStreaming] = useState(false);
   const [frameCount, setFrameCount] = useState(0);
@@ -18,6 +25,16 @@ const LiveCapture = () => {
   const [starting, setStarting] = useState(false);
   const [sessionEndsAt, setSessionEndsAt] = useState(null);
   const [secondsLeft, setSecondsLeft] = useState(0);
+  const [measuring, setMeasuring] = useState(false);
+  const [language, setLanguage] = useState('en-IN');
+  const [concern, setConcern] = useState('');
+  const [resultLanguage, setResultLanguage] = useState('en-IN');
+  const [speaking, setSpeaking] = useState(false);
+
+  const updateMeasuring = React.useCallback((value) => {
+    measuringRef.current = value;
+    setMeasuring(value);
+  }, []);
 
   const captureFrame = () => {
     const video = videoRef.current;
@@ -31,8 +48,12 @@ const LiveCapture = () => {
   };
 
   const analyzeSkin = async () => {
+    if (measuringRef.current || requestRef.current) return;
     const frame = captureFrame();
     if (!frame) return;
+    const options = settingsRef.current;
+    const controller = new AbortController();
+    requestRef.current = controller;
     setIsAnalyzing(true);
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/skin-analysis`, {
@@ -42,7 +63,8 @@ const LiveCapture = () => {
           Authorization: `Bearer ${Cookies.get('token')}`,
         },
         credentials: 'include',
-        body: JSON.stringify({ frame }),
+        body: JSON.stringify({ frame, ...options }),
+        signal: controller.signal,
       });
       const data = await res.json();
       if (data.sessionEnded) {
@@ -50,12 +72,17 @@ const LiveCapture = () => {
         setError(data.message);
         return;
       }
+      setResultLanguage(data.success ? options.language : 'en-IN');
       setAnalysis(data.success ? data.analysis : 'Analysis failed: ' + data.message);
     } catch (err) {
+      if (err.name === 'AbortError') return;
       console.error('Skin analysis fetch error:', err);
       setAnalysis('Could not reach server. Make sure backend is running.');
     } finally {
-      setIsAnalyzing(false);
+      if (requestRef.current === controller) {
+        requestRef.current = null;
+        setIsAnalyzing(false);
+      }
     }
   };
 
@@ -82,6 +109,7 @@ const LiveCapture = () => {
   const startCamera = async () => {
     setError(null);
     setAnalysis(null);
+    settingsRef.current = { language: 'en-IN', concern: '' };
     setStarting(true);
     try {
 
@@ -108,7 +136,7 @@ const LiveCapture = () => {
 
       analysisTimerRef.current = setInterval(() => analyzeSkin(), 5000);
 
-      setTimeout(() => analyzeSkin(), 1000);
+      firstAnalysisRef.current = setTimeout(analyzeSkin, 1000);
 
     } catch (err) {
       if (err.name === 'NotAllowedError') setError('Camera permission denied.');
@@ -122,6 +150,11 @@ const LiveCapture = () => {
   const stopCamera = () => {
     clearInterval(intervalRef.current);
     clearInterval(analysisTimerRef.current);
+    clearTimeout(firstAnalysisRef.current);
+    requestRef.current?.abort();
+    requestRef.current = null;
+    setIsAnalyzing(false);
+    updateMeasuring(false);
     intervalRef.current = null;
     analysisTimerRef.current = null;
     if (streamRef.current) {
@@ -155,9 +188,25 @@ const LiveCapture = () => {
     return () => {
       clearInterval(intervalRef.current);
       clearInterval(analysisTimerRef.current);
+      clearTimeout(firstAnalysisRef.current);
+      requestRef.current?.abort();
+      window.speechSynthesis?.cancel();
       if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
     };
   }, []);
+
+  const readAnalysis = () => {
+    if (speaking) {
+      window.speechSynthesis.cancel();
+      setSpeaking(false);
+      return;
+    }
+    const utterance = new SpeechSynthesisUtterance(analysis.replace(/\*\*/g, ''));
+    utterance.lang = resultLanguage;
+    utterance.onend = utterance.onerror = () => setSpeaking(false);
+    setSpeaking(true);
+    window.speechSynthesis.speak(utterance);
+  };
 
   const renderAnalysis = (text) => {
     const sections = [];
@@ -204,8 +253,10 @@ const LiveCapture = () => {
 
           <section className="flex-[999_1_480px] min-w-0 bg-white rounded-[32px] p-3 shadow-[0_8px_30px_rgba(79,70,229,0.06)]">
             <div className="relative overflow-hidden rounded-[26px] bg-[#1E1B4B] aspect-video flex items-center justify-center">
-              <video ref={videoRef} className={`w-full h-full object-cover ${isStreaming ? 'block' : 'hidden'}`} playsInline muted />
+              <video ref={videoRef} className={`w-full h-full ${measuring ? 'object-fill' : 'object-cover'} ${isStreaming ? 'block' : 'hidden'}`} playsInline muted />
               <canvas ref={canvasRef} className="hidden" />
+              {measuring && <div aria-hidden="true" className="pointer-events-none absolute rounded-lg border-2 border-emerald-300"
+                style={Object.fromEntries(Object.entries(forehead).map(([key, value]) => [key, `${value * 100}%`]))} />}
               {!isStreaming && (
                 <div className="flex flex-col items-center gap-3 text-center px-6">
                   <span className="w-20 h-20 rounded-full bg-[#312E81] text-[#C7D2FE] flex items-center justify-center"><Camera size={34} /></span>
@@ -230,7 +281,10 @@ const LiveCapture = () => {
               </span>
               <div className="flex gap-2">
                 {isStreaming && (
-                  <button onClick={analyzeSkin} disabled={isAnalyzing} className="h-11 px-5 rounded-full bg-[#E7F7EF] text-[#05603A] text-sm font-bold flex items-center gap-2 disabled:opacity-50">
+                  <button onClick={() => {
+                    settingsRef.current = { language, concern: concern.trim() };
+                    analyzeSkin();
+                  }} disabled={isAnalyzing || measuring} className="h-11 px-5 rounded-full bg-[#E7F7EF] text-[#05603A] text-sm font-bold flex items-center gap-2 disabled:opacity-50">
                     <Scan size={16} /> Analyse now
                   </button>
                 )}
@@ -240,10 +294,23 @@ const LiveCapture = () => {
                 </button>
               </div>
             </div>
+            <CameraPulse videoRef={videoRef} streaming={isStreaming} measuring={measuring} setMeasuring={updateMeasuring} analysisPending={isAnalyzing} />
           </section>
 
           <section className="flex-[1_1_320px] min-w-0 bg-white rounded-[28px] p-6 shadow-[0_8px_30px_rgba(79,70,229,0.06)] flex flex-col gap-3">
             <h2 className="flex items-center gap-2 text-lg font-extrabold"><Sparkles size={18} className="text-indigo-600" /> What the AI sees</h2>
+            <label className="grid gap-1 text-sm font-semibold">Skin concern (optional)
+              <textarea className="rounded-xl bg-[#F6F6FD] p-3 text-sm font-normal" maxLength={500} rows={2}
+                value={concern} onChange={(event) => setConcern(event.target.value)} placeholder="Describe what you want the analysis to focus on" />
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <VoiceLanguage value={language} onChange={setLanguage} disabled={measuring} />
+              <VoiceInput key={language} language={language} disabled={measuring}
+                onTranscript={(value) => setConcern((current) => [current, value].filter(Boolean).join(' ').slice(0, 500))} />
+              {analysis && window.speechSynthesis && <button type="button" onClick={readAnalysis}
+                className="rounded-full bg-indigo-50 px-3 py-1.5 text-sm font-bold text-indigo-700">{speaking ? 'Stop reading' : 'Read result aloud'}</button>}
+            </div>
+            <p className="text-xs text-[#6B6A8A]">Select Analyse now to use your concern and language.</p>
             {analysis ? (
               renderAnalysis(analysis)
             ) : (
