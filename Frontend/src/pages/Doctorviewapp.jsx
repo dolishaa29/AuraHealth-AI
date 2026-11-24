@@ -154,7 +154,7 @@ const Doctorviewapp = () => {
                   <button onClick={() => navigate("/doctorchat")} className="h-12 px-5 rounded-full bg-white text-[#312E81] text-[15px] font-bold flex items-center gap-2"><MessageCircle size={17} /> Message</button>
                 </div>
                 <div className="relative w-full">{briefingBox(next)}</div>
-                <MedicineChanges appointment={next} doctor canPublish={Date.now() >= when(next).getTime()} />
+                <MedicineChanges appointment={next} doctor canPublish={now >= when(next).getTime()} />
               </section>
             )}
 
@@ -178,7 +178,7 @@ const Doctorviewapp = () => {
                         <Sparkles size={14} /> {briefingId === a._id ? "Hide brief" : "Visit brief"}
                       </button>
                       {briefingBox(a)}
-                      <MedicineChanges appointment={a} doctor canPublish={Date.now() >= when(a).getTime()} />
+                      <MedicineChanges appointment={a} doctor canPublish={now >= when(a).getTime()} />
                     </div>
                   );
                 })}

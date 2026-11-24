@@ -1,14 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Mic } from "lucide-react";
-
-export const languages = {
-  "en-IN": "English",
-  "hi-IN": "Hindi",
-  "ta-IN": "Tamil",
-  "te-IN": "Telugu",
-  "bn-IN": "Bengali",
-  "mr-IN": "Marathi",
-};
+import { languages } from "./voiceLanguages";
 
 export function VoiceLanguage({ value, onChange, disabled }) {
   return (
