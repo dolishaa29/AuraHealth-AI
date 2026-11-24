@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Cookies from "js-cookie";
-import { Pill, Plus, Trash2, Pencil, Pause, Play, Check, Undo2, Mail, BellRing, Loader2, X } from "lucide-react";
+import { Camera, Pill, Plus, Trash2, Pencil, Pause, Play, Check, Undo2, Mail, BellRing, Loader2, X } from "lucide-react";
 import { todayStr, nowTimeStr, toMinutes, formatTime, formatDate, myTimezone } from "../utils/time";
 
 const API = import.meta.env.VITE_API_URL;
@@ -24,6 +24,10 @@ const Reminders = () => {
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState("");
+  const [scanDrafts, setScanDrafts] = useState([]);
+  const [photoUrl, setPhotoUrl] = useState("");
   const [notifyPermission, setNotifyPermission] = useState(typeof Notification === "undefined" ? "unsupported" : Notification.permission);
 
   const loadAll = async () => {
@@ -48,6 +52,10 @@ const Reminders = () => {
     return () => window.removeEventListener("reminders-changed", loadAll);
   }, []);
 
+  useEffect(() => () => {
+    if (photoUrl) URL.revokeObjectURL(photoUrl);
+  }, [photoUrl]);
+
   const markDose = async (dose, status) => {
     try {
       await axios.post(`${API}/reminders/dose`, { reminderId: dose.reminderId, date: todayStr(), time: dose.time, status }, authConfig());
@@ -67,6 +75,53 @@ const Reminders = () => {
   const updateField = (field, value) => setForm((f) => ({ ...f, [field]: value }));
   const updateTime = (i, value) => setForm((f) => ({ ...f, times: f.times.map((t, idx) => (idx === i ? value : t)) }));
 
+  const reviewDraft = (drafts) => {
+    setScanDrafts(drafts);
+    setFormError("");
+    setFormOpen(drafts.length > 0);
+    if (!drafts.length) {
+      setPhotoUrl("");
+      return;
+    }
+    setEditingId(null);
+    const { medicine, dosage, instructions } = drafts[0];
+    setForm({ ...emptyForm(), medicine, dosage, notes: instructions, times: [""] });
+  };
+
+  const closeForm = () => {
+    if (saving) return;
+    setFormOpen(false);
+    setScanDrafts([]);
+    setPhotoUrl("");
+  };
+
+  const scanPhoto = async (event) => {
+    const photo = event.target.files?.[0];
+    event.target.value = "";
+    if (!photo) return;
+    setScanError("");
+    if (!["image/jpeg", "image/png", "image/webp"].includes(photo.type) || photo.size > 5 * 1024 * 1024) {
+      setScanError("Choose a JPEG, PNG, or WebP photo no larger than 5 MB.");
+      return;
+    }
+    setScanning(true);
+    try {
+      const data = new FormData();
+      data.append("photo", photo);
+      const { data: { medicines } } = await axios.post(`${API}/reminders/scan`, data, authConfig());
+      if (!medicines.length) {
+        setScanError("No readable medicines found. Try a clearer photo or add them manually.");
+        return;
+      }
+      setPhotoUrl(URL.createObjectURL(photo));
+      reviewDraft(medicines);
+    } catch (err) {
+      setScanError(err.response?.data?.msg || "Couldn't scan the prescription. Please try again.");
+    } finally {
+      setScanning(false);
+    }
+  };
+
   const saveForm = async (e) => {
     e.preventDefault();
     setFormError("");
@@ -75,7 +130,8 @@ const Reminders = () => {
     try {
       if (editingId) await axios.put(`${API}/reminders/${editingId}`, body, authConfig());
       else await axios.post(`${API}/reminders`, body, authConfig());
-      setFormOpen(false);
+      if (scanDrafts.length) reviewDraft(scanDrafts.slice(1));
+      else setFormOpen(false);
       announceChange();
     } catch (err) {
       setFormError(err.response?.data?.msg || "Couldn't save the reminder.");
@@ -111,10 +167,16 @@ const Reminders = () => {
             <h1 className="text-[28px] sm:text-[32px] font-extrabold tracking-[-0.025em]">Your medicines</h1>
             <p className="mt-1.5 text-[15px] text-[#6B6A8A]">We'll nudge you at the right time, every time.</p>
           </div>
-          <button onClick={openNewForm} className="inline-flex items-center gap-2 h-12 px-[22px] rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-[15px] font-bold shadow-[0_10px_20px_-6px_rgba(79,70,229,0.5)]">
+          <label className="inline-flex items-center gap-2 h-12 px-5 rounded-full bg-white text-indigo-700 text-sm font-bold cursor-pointer focus-within:ring-2 focus-within:ring-indigo-400">
+            {scanning ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
+            <span role="status">{scanning ? "Reading prescription…" : "Scan prescription"}</span>
+            <input type="file" accept="image/jpeg,image/png,image/webp" disabled={scanning || formOpen} onChange={scanPhoto} className="sr-only" />
+          </label>
+          <button onClick={openNewForm} disabled={scanning || formOpen} className="inline-flex items-center gap-2 h-12 px-[22px] rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-[15px] font-bold shadow-[0_10px_20px_-6px_rgba(79,70,229,0.5)] disabled:opacity-50">
             <Plus size={18} strokeWidth={2.4} /> Add medicine
           </button>
         </div>
+        {scanError && <p role="alert" className="px-5 py-3 rounded-[20px] bg-[#FFECEB] text-[#B42318] text-sm font-semibold">{scanError}</p>}
 
         {notifyPermission === "default" && (
           <div className="flex flex-wrap items-center gap-3 px-5 py-4 rounded-[22px] bg-[#EEEDFF] text-[#312E81]">
@@ -205,7 +267,7 @@ const Reminders = () => {
                       </p>
                     </div>
                     <button onClick={() => toggleActive(r)} aria-label={r.active ? "Pause" : "Resume"} className="w-9 h-9 rounded-full bg-white/70 hover:bg-white flex items-center justify-center">{r.active ? <Pause size={14} /> : <Play size={14} />}</button>
-                    <button onClick={() => openEditForm(r)} aria-label="Edit" className="w-9 h-9 rounded-full bg-white/70 hover:bg-white flex items-center justify-center"><Pencil size={14} /></button>
+                    <button onClick={() => openEditForm(r)} disabled={scanning || formOpen} aria-label="Edit" className="w-9 h-9 rounded-full bg-white/70 hover:bg-white flex items-center justify-center"><Pencil size={14} /></button>
                     <button onClick={() => deleteReminder(r)} aria-label="Delete" className="w-9 h-9 rounded-full bg-white/70 hover:bg-white hover:text-[#B42318] flex items-center justify-center"><Trash2 size={14} /></button>
                   </div>
                 ))}
@@ -216,12 +278,24 @@ const Reminders = () => {
       </div>
 
       {formOpen && (
-        <div className="fixed inset-0 z-50 bg-[#1E1B4B]/40 flex items-end sm:items-center justify-center p-4" onClick={() => setFormOpen(false)}>
+        <div role="dialog" aria-modal="true" aria-labelledby="medicine-form-title" className="fixed inset-0 z-50 bg-[#1E1B4B]/40 flex items-end sm:items-center justify-center p-4" onClick={closeForm}>
           <form onSubmit={saveForm} onClick={(e) => e.stopPropagation()} className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white rounded-[32px] p-6 sm:p-7 flex flex-col gap-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-extrabold">{editingId ? "Edit medicine" : "Add a medicine"}</h2>
-              <button type="button" onClick={() => setFormOpen(false)} aria-label="Close" className="w-10 h-10 rounded-full bg-[#F6F6FD] flex items-center justify-center"><X size={18} /></button>
+              <h2 id="medicine-form-title" className="text-xl font-extrabold">{scanDrafts.length ? "Review prescription" : editingId ? "Edit medicine" : "Add a medicine"}</h2>
+              <button type="button" onClick={closeForm} disabled={saving} aria-label="Close" className="w-10 h-10 rounded-full bg-[#F6F6FD] flex items-center justify-center"><X size={18} /></button>
             </div>
+            {scanDrafts.length > 0 && (
+              <div className="rounded-[18px] bg-[#F6F6FD] p-4 text-sm text-[#4B4A6B]">
+                <p>Check the extracted details against your photo, then choose reminder times and dates.</p>
+                <p className="mt-2">Frequency read from photo <strong>{scanDrafts[0].frequency || "Unavailable"}</strong></p>
+                <p>Duration read from photo <strong>{scanDrafts[0].duration || "Unavailable"}</strong></p>
+                <details className="mt-2">
+                  <summary className="cursor-pointer font-bold text-indigo-700">View prescription photo</summary>
+                  <img src={photoUrl} alt="Your uploaded prescription" className="mt-2 w-full rounded-lg" />
+                </details>
+                <p className="mt-2" role="status">{scanDrafts.length} {scanDrafts.length === 1 ? "medicine" : "medicines"} left to review</p>
+              </div>
+            )}
             <div className="grid sm:grid-cols-2 gap-3">
               <label className="flex flex-col gap-1.5 text-sm font-bold">Medicine *<input className={inputCls} placeholder="e.g. Paracetamol" value={form.medicine} onChange={(e) => updateField("medicine", e.target.value)} /></label>
               <label className="flex flex-col gap-1.5 text-sm font-bold">Dosage<input className={inputCls} placeholder="1 tablet, 5 ml" value={form.dosage} onChange={(e) => updateField("dosage", e.target.value)} /></label>
@@ -253,8 +327,13 @@ const Reminders = () => {
             </label>
             {formError && <p className="px-4 py-2.5 rounded-[18px] bg-[#FFECEB] text-[#B42318] text-sm font-semibold">{formError}</p>}
             <button type="submit" disabled={saving} className="h-[52px] rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-base font-extrabold flex items-center justify-center gap-2 disabled:opacity-50">
-              {saving && <Loader2 size={16} className="animate-spin" />} {editingId ? "Save changes" : "Add medicine"}
+              {saving && <Loader2 size={16} className="animate-spin" />} {scanDrafts.length ? "Confirm and save reminder" : editingId ? "Save changes" : "Add medicine"}
             </button>
+            {scanDrafts.length > 0 && (
+              <button type="button" disabled={saving} onClick={() => reviewDraft(scanDrafts.slice(1))} className="text-sm font-bold text-indigo-700">
+                Skip this medicine
+              </button>
+            )}
           </form>
         </div>
       )}
