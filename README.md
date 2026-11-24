@@ -14,6 +14,7 @@ A telemedicine platform that connects patients with doctors. Patients can book a
 - Medical report analysis: upload a report and ask questions about it
 - Skin analysis from a photo or live webcam
 - Medicine reminders, with optional email alerts and a "taken / skipped" log
+- Wellness tools for symptom logging, meal planning and meal photo recognition
 - SOS: emergency contacts and nearby hospitals on a map with directions
 - Rate doctors after a consultation
 
@@ -21,14 +22,19 @@ A telemedicine platform that connects patients with doctors. Patients can book a
 - Apply with a certificate; the admin approves the application before the doctor is listed
 - Manage appointments, chat with patients and join video calls
 - See ratings and feedback
+- Track consultation earnings and request withdrawals
 
 **For admins**
 - Approve or reject doctor applications
 - Manage users, doctors and appointments
+- Review completed consultations and withdrawal requests, and record payout references
+- Receive email notifications for new doctor applications and withdrawal requests
 
-**Credits**
-- Paid features (AI chat, report analysis, skin analysis, booking) cost credits
-- Users buy credit packs through Razorpay
+**Credits and payouts**
+- AI chat, report analysis and live skin analysis sessions use AI credits.
+- Booking a consultation costs 100 consultation credits from a verified live Razorpay purchase. Consultation packs also include AI credits.
+- Sample card number for checkout documentation is `4100 2800 0000 1007`. Aura Health's consultation checkout requires Razorpay Live Mode. For sandbox testing, use a [Razorpay-documented test card](https://razorpay.com/blog/accept-international-payments-webflow/) in a Test Mode checkout.
+- Doctors can request withdrawals from cleared earnings. Admins review requests and record the payment reference after transferring funds.
 
 ## Tech Stack
 
@@ -88,13 +94,15 @@ AuraHealth/
 
 ## Run It Locally
 
-You need **Node.js 20.19+**, plus accounts for MongoDB, Redis, Cloudinary, Gemini and Razorpay (test mode).
+Use **Node.js 22**, which matches CI and the backend Docker image. The backend needs Redis at startup and a MongoDB connection. Use MongoDB Atlas or a replica set for workflows that use transactions, including booking and payments.
+
+Configure Gmail credentials for OTP and email notifications, Cloudinary for uploads, and a Gemini API key for AI features. Consultation checkout requires live Razorpay credentials. Leave the Razorpay values blank to run locally with checkout disabled.
 
 ### 1. Backend
 
 ```bash
 cd Backend
-npm install
+npm ci
 ```
 
 Create `Backend/.env`:
@@ -102,7 +110,7 @@ Create `Backend/.env`:
 ```env
 PORT=5000
 MONGO_URI=your_mongodb_url
-REDIS_URL=your_redis_url
+REDIS_URL=redis://localhost:6379
 JWT_SECRET=any_long_random_text
 CORS_ORIGINS=http://localhost:5173
 
@@ -115,23 +123,25 @@ API_SECRET=cloudinary_api_secret
 
 GEMINI_API_KEY=your_gemini_key
 
-RAZORPAY_KEY_ID=rzp_test_xxx
-RAZORPAY_KEY_SECRET=xxx
-RAZORPAY_WEBHOOK_SECRET=xxx        # optional
-FRONTEND_URL=http://localhost:5173 # optional, used in reminder emails
+RAZORPAY_KEY_ID=
+RAZORPAY_KEY_SECRET=
+RAZORPAY_WEBHOOK_SECRET=
+FRONTEND_URL=http://localhost:5173
 ```
 
 Start the backend:
 
 ```bash
-npm run dev
+npm start
 ```
 
 ### 2. Frontend
 
+Open a second terminal at the repository root.
+
 ```bash
 cd Frontend
-npm install
+npm ci
 ```
 
 Create `Frontend/.env`:
@@ -146,15 +156,17 @@ Start the frontend:
 npm run dev
 ```
 
-Open http://localhost:5173.
+Open http://localhost:5173. Check backend connectivity at http://localhost:5000/healthz.
 
 ## Deployment
 
-- **Frontend:** Vercel deploys it automatically on every push to `main`.
-- **Backend:** runs in Docker on AWS EC2, behind Nginx. It does **not** update on push. To deploy, pull the new code on the server, rebuild the Docker image, and restart the container.
-- `docker-compose.yml` can also run two backend copies behind Nginx when you need to scale up.
+- Vercel hosts the frontend. Set `VITE_API_URL` to the public backend URL and include the frontend origin in the backend's `CORS_ORIGINS` list.
+- The backend runs on AWS EC2. From the repository root on the server, run `docker compose up -d --build` after pulling changes. The Compose configuration starts two backend instances behind Nginx, with MongoDB and Redis configured through `Backend/.env`.
+- For Razorpay webhook verification, configure `/razorpay/webhook` with the same secret as `RAZORPAY_WEBHOOK_SECRET`.
 
-Health check: `GET /healthz` returns the server and database status.
+`GET /healthz` returns HTTP 200 when MongoDB is connected and HTTP 503 otherwise.
+
+GitHub Actions runs frontend lint and build checks, backend syntax checks, and a backend Docker build for pushes and pull requests targeting `main`.
 
 ## More Docs
 
