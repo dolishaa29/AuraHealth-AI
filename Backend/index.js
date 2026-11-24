@@ -65,6 +65,7 @@ app.use("/", require("./router/triagerouter"));
 app.use("/", require("./router/hospitalrouter"));
 app.use("/", require("./router/emergencyrouter"));
 app.use("/", require("./router/reminderrouter"));
+app.use("/", require("./router/wellnessrouter"));
 app.use("/", require("./router/creditrouter"));
 
 let { startReminderScheduler } = require("./helper/reminderhelper");

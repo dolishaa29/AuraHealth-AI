@@ -4,7 +4,7 @@ import Cookies from 'js-cookie';
 import axios from 'axios';
 import {
   CalendarPlus, LayoutList, LogOut, Menu, X, Heart,
-  Home, User, MessageCircle, FileText, ScanFace, CalendarClock, MapPin, ShieldAlert, Pill,
+  Home, User, MessageCircle, FileText, ScanFace, CalendarClock, MapPin, ShieldAlert, Pill, NotebookPen,
 } from 'lucide-react';
 import SosButton from './SosButton';
 import ReminderNotifier from './ReminderNotifier';
@@ -15,6 +15,7 @@ const NAV = [
   { path: '/SlotBooking', label: 'Book a slot', icon: CalendarClock },
   { path: '/userviewapp', label: 'Appointments', icon: LayoutList },
   { path: '/reminders', label: 'Medicines', icon: Pill },
+  { path: '/wellness', label: 'Meals and symptoms', icon: NotebookPen },
   { path: '/ReportAnalysis', label: 'Reports', icon: FileText },
   { path: '/LiveCapture', label: 'Skin scan', icon: ScanFace },
   { path: '/userchat', label: 'Messages', icon: MessageCircle },

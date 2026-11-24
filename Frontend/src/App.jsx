@@ -41,6 +41,7 @@ const Meeting = lazy(() => import('./pages/Meeting'));
 const NearbyHospitals = lazy(() => import('./pages/NearbyHospitals'));
 const EmergencyContacts = lazy(() => import('./pages/EmergencyContacts'));
 const Reminders = lazy(() => import('./pages/Reminders'));
+const Wellness = lazy(() => import('./pages/Wellness'));
 const Credits = lazy(() => import('./pages/Credits'));
 
 function App() {
@@ -93,6 +94,7 @@ function App() {
           <Route path='/NearbyHospitals' element={<NearbyHospitals/>}/>
           <Route path='/emergency-contacts' element={<EmergencyContacts/>}/>
           <Route path='/reminders' element={<Reminders/>}/>
+          <Route path='/wellness' element={<Wellness/>}/>
           <Route path='/credits' element={<Credits/>}/>
           <Route path='/changepassworduser' element={<Changepassuser/>}/>
         </Route>

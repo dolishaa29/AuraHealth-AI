@@ -1,5 +1,9 @@
 const { getModel, GEMINI_API_KEY } = require("../config/gemini");
 const { CREDIT_COSTS, spendCredits, addCredits, notEnoughCreditsMsg } = require("../helper/credithelper");
+const languages = new Map([
+  ["en-IN", "English"], ["hi-IN", "Hindi"], ["ta-IN", "Tamil"],
+  ["te-IN", "Telugu"], ["bn-IN", "Bengali"], ["mr-IN", "Marathi"],
+]);
 
 async function chargeForMessage(req) {
   if (!req.user) {
@@ -68,12 +72,13 @@ exports.chatStream = async (req, res) => {
     });
   }
 
-  const { prompt } = req.body;
+  const { prompt, language } = req.body || {};
 
-  if (!prompt) {
+  if (typeof prompt !== "string" || !prompt.trim() || prompt.length > 4000
+    || (language !== undefined && !languages.has(language))) {
     return res.status(400).json({
       success: false,
-      message: "Prompt is required",
+      message: "Enter a question up to 4,000 characters and choose a supported language.",
     });
   }
 
@@ -100,7 +105,9 @@ exports.chatStream = async (req, res) => {
   let sentSomething = false;
 
   try {
-    const model = getModel();
+    const model = language
+      ? getModel({ systemInstruction: `Answer in ${languages.get(language)}. Give general health information and encourage professional care for personal diagnosis or treatment decisions.` })
+      : getModel();
     const result = await model.generateContentStream(prompt);
 
     for await (const chunk of result.stream) {

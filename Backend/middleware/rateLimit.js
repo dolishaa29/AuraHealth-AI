@@ -68,4 +68,14 @@ const prescriptionLimiter = rateLimit({
   message: { msg: "Too many scans. Please try again in a minute." },
 });
 
-module.exports = { chatLimiter, skinAnalysisLimiter, triageLimiter, hospitalLimiter, guestChatLimiter, prescriptionLimiter };
+const wellnessLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 8,
+  keyGenerator: (req) => String(req.user._id),
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: new RedisStore({ sendCommand, prefix: "rl:wellness:" }),
+  message: { msg: "Too many requests. Try again in a minute." },
+});
+
+module.exports = { chatLimiter, skinAnalysisLimiter, triageLimiter, hospitalLimiter, guestChatLimiter, prescriptionLimiter, wellnessLimiter };

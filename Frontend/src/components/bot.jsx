@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { X, Send, Stethoscope, Sparkles } from "lucide-react";
 import Cookies from "js-cookie";
+import VoiceInput, { VoiceLanguage } from "./VoiceInput";
 
 const FALLBACK_MESSAGE = "Sorry, I couldn't process that. Please try again.";
 
@@ -9,6 +10,7 @@ const Bot = ({ raised = false }) => {
   const [prompt, setPrompt] = useState("");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [language, setLanguage] = useState("en-IN");
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const abortControllerRef = useRef(null);
@@ -21,10 +23,14 @@ const Bot = ({ raised = false }) => {
     if (isOpen) setTimeout(() => inputRef.current?.focus(), 300);
   }, [isOpen]);
 
-  useEffect(() => () => abortControllerRef.current?.abort(), []);
+  useEffect(() => () => {
+    abortControllerRef.current?.abort();
+    window.speechSynthesis?.cancel();
+  }, []);
 
   const closeChat = () => {
     abortControllerRef.current?.abort();
+    window.speechSynthesis?.cancel();
     setIsOpen(false);
   };
 
@@ -42,7 +48,7 @@ const Bot = ({ raised = false }) => {
     setMessages((prev) => [
       ...prev,
       { text, sender: "user" },
-      { text: "", sender: "bot", streaming: true },
+      { text: "", sender: "bot", streaming: true, language },
     ]);
     setPrompt("");
     setLoading(true);
@@ -57,11 +63,11 @@ const Bot = ({ raised = false }) => {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         credentials: "include",
-        body: JSON.stringify({ prompt: text }),
+        body: JSON.stringify({ prompt: text, language }),
         signal: controller.signal,
       });
 
-      if (res.status === 402 || res.status === 429) {
+      if (res.status === 400 || res.status === 402 || res.status === 429) {
         const data = await res.json().catch(() => ({}));
         updateLastMessage(() => ({ text: data.message || FALLBACK_MESSAGE, sender: "bot", streaming: false }));
         return;
@@ -128,6 +134,13 @@ const Bot = ({ raised = false }) => {
       setLoading(false);
       abortControllerRef.current = null;
     }
+  };
+
+  const readReply = (message) => {
+    window.speechSynthesis.cancel();
+    const speech = new SpeechSynthesisUtterance(message.text);
+    speech.lang = message.language;
+    window.speechSynthesis.speak(speech);
   };
 
   return (
@@ -203,7 +216,12 @@ const Bot = ({ raised = false }) => {
                     <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                   </div>
                 ) : (
-                  msg.text
+                  <>
+                    {msg.text}
+                    {msg.sender === "bot" && !msg.streaming && msg.language && msg.text && window.speechSynthesis && (
+                      <button type="button" className="mt-2 block text-xs font-bold text-indigo-700" onClick={() => readReply(msg)}>Read aloud</button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -213,10 +231,15 @@ const Bot = ({ raised = false }) => {
         </div>
 
         <div className="px-4 pb-4 pt-2 border-t border-slate-50 shrink-0">
+          {isOpen && <div className="mb-2 flex flex-wrap items-center gap-2">
+            <VoiceLanguage value={language} onChange={setLanguage} disabled={loading} />
+            <VoiceInput key={language} language={language} disabled={loading} onTranscript={(value) => setPrompt(value.slice(0, 4000))} />
+          </div>}
           <div className="flex items-center gap-2 bg-[#F6F6FD] border-2 border-transparent rounded-[18px] focus:bg-white px-4 py-2 focus-within:ring-2 focus-within:ring-indigo-100 focus-within:border-indigo-300 transition-all">
             <input
               ref={inputRef}
               value={prompt}
+              maxLength={4000}
               onChange={(e) => setPrompt(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && sendMessage()}
               placeholder="Type your health question..."
@@ -235,7 +258,7 @@ const Bot = ({ raised = false }) => {
       </div>
 
       <button
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={isOpen ? closeChat : () => setIsOpen(true)}
         className={`w-14 h-14 bg-linear-to-br from-indigo-600 to-indigo-600 hover:opacity-90 text-white rounded-[20px] shadow-xl shadow-indigo-200 flex items-center justify-center transition-all duration-300 active:scale-95
           ${isOpen ? "rotate-0" : "hover:scale-105"}`}
         title="AuraHealth Bot"

@@ -3,6 +3,7 @@ import axios from "axios";
 import Cookies from "js-cookie";
 import { Camera, Pill, Plus, Trash2, Pencil, Pause, Play, Check, Undo2, Mail, BellRing, Loader2, X } from "lucide-react";
 import { todayStr, nowTimeStr, toMinutes, formatTime, formatDate, myTimezone } from "../utils/time";
+import PhotoScan from "../components/PhotoScan";
 
 const API = import.meta.env.VITE_API_URL;
 const authConfig = () => ({ headers: { Authorization: `Bearer ${Cookies.get("token")}` }, withCredentials: true });
@@ -25,6 +26,7 @@ const Reminders = () => {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [scanning, setScanning] = useState(false);
+  const [medicineLabel, setMedicineLabel] = useState(null);
   const [scanError, setScanError] = useState("");
   const [scanDrafts, setScanDrafts] = useState([]);
   const [photoUrl, setPhotoUrl] = useState("");
@@ -176,6 +178,22 @@ const Reminders = () => {
             <Plus size={18} strokeWidth={2.4} /> Add medicine
           </button>
         </div>
+        <section className={`${CARD} grid gap-2 p-5`}>
+          <h2 className="text-lg font-extrabold">Medicine detector</h2>
+          <p className="text-sm text-[#6B6A8A]">Scan the printed label on one box or blister pack and compare it with your reminders.</p>
+          <PhotoScan path="/reminders/scan-label" label="Choose a package photo" onResult={setMedicineLabel} />
+          {medicineLabel && (medicineLabel.medicine ? (
+            <div className="grid gap-1 rounded-xl bg-indigo-50 p-3 text-sm" aria-live="polite">
+              <p>Text read from package <strong>{medicineLabel.medicine}{medicineLabel.strength && ` · ${medicineLabel.strength}`}</strong></p>
+              <p>Compare the name and strength with the original package. Reminder matches use the name only.</p>
+              {medicineLabel.matches.length ? (
+                <ul className="list-disc pl-5">
+                  {medicineLabel.matches.map((match) => <li key={match._id}>{match.medicine}{match.dosage && ` · ${match.dosage}`} · {match.times.map(formatTime).join(", ")}</li>)}
+                </ul>
+              ) : <p>No active reminders with the same name.</p>}
+            </div>
+          ) : <p className="text-sm" role="status">No readable package label found. Try a clearer photo of one box or blister pack.</p>)}
+        </section>
         {scanError && <p role="alert" className="px-5 py-3 rounded-[20px] bg-[#FFECEB] text-[#B42318] text-sm font-semibold">{scanError}</p>}
 
         {notifyPermission === "default" && (
