@@ -1,6 +1,6 @@
-let rec4=require("../model/Appointment/appointrequest");
-let rec5=require("../model/Appointment/appointment");
-let rec=require("../model/doctor");
+const AppointmentRequest = require("../model/Appointment/appointrequest");
+const Appointment = require("../model/Appointment/appointment");
+const Doctor = require("../model/doctor");
 const Report = require("../model/report");
 const { connection, isValidObjectId } = require("mongoose");
 const Payment = require("../model/payment");
@@ -9,141 +9,173 @@ const DoseLog = require("../model/doseLog");
 const { addDays, isValidDate, isValidTime, localDateTime } = require("../helper/reminderhelper");
 const { CREDIT_COSTS } = require("../helper/credithelper");
 
-exports.appointrequest = (req, res) => res.status(410).json({
-  success: false, msg: "Choose a time on Book a slot to schedule a consultation.",
-});
+const BOOKING_TIMES = [
+  "01:22", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
+  "12:00", "12:30", "13:00", "13:30", "14:00", "14:30",
+  "15:00", "15:30", "16:00", "16:30",
+];
 
-exports.viewappointment=async(req,res)=>
-{
-    const admin = req.admin;
-    if (!admin) {
-        return res.status(403).json({success: false,msg:'Access denied. Admin privileges required.'});
-    }
+exports.appointrequest = (req, res) =>
+  res.status(410).json({
+    success: false,
+    msg: "Choose a time on Book a slot to schedule a consultation.",
+  });
 
-    const page = parseInt(req.query.page, 10);
-    const limit = parseInt(req.query.limit, 10);
+exports.viewappointment = async (req, res) => {
+  if (!req.admin) {
+    return res
+      .status(403)
+      .json({ success: false, msg: "Access denied. Admin privileges required." });
+  }
 
-    if (!page || !limit) {
-        let appointments=await rec4.find();
-        return res.status(200).json({success: true,msg:'appointment requests fetched successfully',appointments});
-    }
+  const page = parseInt(req.query.page, 10);
+  const limit = parseInt(req.query.limit, 10);
 
-    const skip = (page - 1) * limit;
-    const [appointments, total] = await Promise.all([
-        rec4.find().skip(skip).limit(limit),
-        rec4.countDocuments(),
-    ]);
+  if (!page || !limit) {
+    const appointments = await AppointmentRequest.find();
     return res.status(200).json({
-        success: true,
-        msg: 'appointment requests fetched successfully',
-        appointments,
-        total,
-        page,
-        totalPages: Math.ceil(total / limit),
+      success: true,
+      msg: "appointment requests fetched successfully",
+      appointments,
     });
-}
+  }
 
-exports.appointmentstatus=async(req,res)=>
-{
-    const { id, status } = req.body || {};
-    if(!isValidObjectId(id) || status !== "rejected")
-    {
-        return res.status(400).json({success: false,msg:'Invalid status'});
-    }
-    let appointment=await rec4.findOneAndUpdate({_id:id,status:"pending"},{status:status});
-    if(appointment)
-    {
-        return res.status(200).json({success: true,msg:'appointment status updated successfully'});
-    }
-    else
-    {
-        return res.status(404).json({success: false,msg:'appointment not found'});
-    }
-}
+  const skip = (page - 1) * limit;
+  const [appointments, total] = await Promise.all([
+    AppointmentRequest.find().skip(skip).limit(limit),
+    AppointmentRequest.countDocuments(),
+  ]);
+  return res.status(200).json({
+    success: true,
+    msg: "appointment requests fetched successfully",
+    appointments,
+    total,
+    page,
+    totalPages: Math.ceil(total / limit),
+  });
+};
+
+exports.appointmentstatus = async (req, res) => {
+  const { id, status } = req.body || {};
+  if (!isValidObjectId(id) || status !== "rejected") {
+    return res.status(400).json({ success: false, msg: "Invalid status" });
+  }
+  const request = await AppointmentRequest.findOneAndUpdate(
+    { _id: id, status: "pending" },
+    { status }
+  );
+  if (!request) {
+    return res.status(404).json({ success: false, msg: "appointment not found" });
+  }
+  return res.status(200).json({ success: true, msg: "appointment status updated successfully" });
+};
 
 exports.approveappointment = async (req, res) => {
   const { id, date, time } = req.body || {};
-  if (!isValidObjectId(id) || !isValidDate(date) || !isValidTime(time)
-    || Date.parse(`${date}T${time}:00+05:30`) <= Date.now()) {
-    return res.status(400).json({ success: false, msg: "Choose a pending request and a future date and time." });
+  if (
+    !isValidObjectId(id) ||
+    !isValidDate(date) ||
+    !isValidTime(time) ||
+    Date.parse(`${date}T${time}:00+05:30`) <= Date.now()
+  ) {
+    return res
+      .status(400)
+      .json({ success: false, msg: "Choose a pending request and a future date and time." });
   }
   try {
     const approved = await connection.transaction(async (session) => {
-      const request = await rec4.findOneAndUpdate({ _id: id, status: "pending" }, { $set: { status: "approved" } }, { session });
+      const request = await AppointmentRequest.findOneAndUpdate(
+        { _id: id, status: "pending" },
+        { $set: { status: "approved" } },
+        { session }
+      );
       if (!request) return false;
       const { userid, name, email, doctorid, doctormail, description } = request;
-      const appointment = new rec5({ userid, name, email, doctorid, doctormail, description, date, time });
+      const appointment = new Appointment({
+        userid,
+        name,
+        email,
+        doctorid,
+        doctormail,
+        description,
+        date,
+        time,
+      });
       await appointment.save({ session });
       return true;
     });
-    if (!approved) return res.status(409).json({ success: false, msg: "This request is no longer pending." });
+    if (!approved)
+      return res.status(409).json({ success: false, msg: "This request is no longer pending." });
     return res.status(201).json({ success: true, msg: "Appointment approved." });
   } catch (err) {
-    if (err.code === 11000) return res.status(409).json({ success: false, msg: "This slot is no longer available." });
+    if (err.code === 11000)
+      return res.status(409).json({ success: false, msg: "This slot is no longer available." });
     throw err;
   }
 };
-
-function generateTimeSlots(bookedTimes) {
-  const allTimes = [
-    "01:22","09:00","09:30","10:00","10:30","11:00","11:30",
-    "12:00","12:30","13:00","13:30","14:00","14:30",
-    "15:00","15:30","16:00","16:30"
-  ];
-  const slots = [];
-  for (let i = 0; i < allTimes.length; i++) {
-    slots.push({ time: allTimes[i], available: !bookedTimes.includes(allTimes[i]) });
-  }
-  return slots;
-}
 
 exports.getAvailableSlots = async (req, res) => {
   const user = req.user;
   const { doctorid, date } = req.query;
 
   if (!doctorid || !date) {
-    return res.status(400).json({ success: false, msg: 'doctorid and date are required' });
+    return res.status(400).json({ success: false, msg: "doctorid and date are required" });
   }
 
-  const doctor = await rec.findOne({ _id: doctorid });
+  const doctor = await Doctor.findOne({ _id: doctorid });
   if (!doctor) {
-    return res.status(404).json({ success: false, msg: 'Doctor not found' });
+    return res.status(404).json({ success: false, msg: "Doctor not found" });
   }
 
-  const userAppointmentOnDate = await rec5.findOne({ userid: user._id.toString(), date });
+  const userAppointmentOnDate = await Appointment.findOne({ userid: user._id.toString(), date });
   if (userAppointmentOnDate) {
     return res.status(200).json({
       success: true,
       slots: [],
       bookingCost: CREDIT_COSTS.slotBooking,
       hasAppointmentToday: true,
-      msg: 'You already have an appointment on this date'
+      msg: "You already have an appointment on this date",
     });
   }
 
-  const booked = await rec5.find({ doctorid, date });
-  const bookedTimes = booked.map(a => a.time);
-  const slots = generateTimeSlots(bookedTimes);
+  const booked = await Appointment.find({ doctorid, date });
+  const bookedTimes = new Set(booked.map((appointment) => appointment.time));
+  const slots = BOOKING_TIMES.map((time) => ({ time, available: !bookedTimes.has(time) }));
 
-  return res.status(200).json({ success: true, slots, bookingCost: CREDIT_COSTS.slotBooking, hasAppointmentToday: false });
+  return res.status(200).json({
+    success: true,
+    slots,
+    bookingCost: CREDIT_COSTS.slotBooking,
+    hasAppointmentToday: false,
+  });
 };
 
 exports.bookSlot = async (req, res) => {
   const user = req.user;
   const { doctorid, date, time, description } = req.body || {};
 
-  if (!isValidObjectId(doctorid) || !isValidDate(date) || !isValidTime(time)
-    || typeof description !== "string" || !description.trim()) {
-    return res.status(400).json({ success: false, msg: 'Choose a doctor, date and time, and enter a reason for the visit.' });
+  if (
+    !isValidObjectId(doctorid) ||
+    !isValidDate(date) ||
+    !isValidTime(time) ||
+    typeof description !== "string" ||
+    !description.trim()
+  ) {
+    return res.status(400).json({
+      success: false,
+      msg: "Choose a doctor, date and time, and enter a reason for the visit.",
+    });
   }
-  if (Date.parse(`${date}T${time}:00+05:30`) <= Date.now()
-    || !generateTimeSlots([]).some((slot) => slot.time === time)) {
-    return res.status(400).json({ success: false, msg: 'Choose a future appointment slot.' });
+  if (
+    Date.parse(`${date}T${time}:00+05:30`) <= Date.now() ||
+    !BOOKING_TIMES.includes(time)
+  ) {
+    return res.status(400).json({ success: false, msg: "Choose a future appointment slot." });
   }
 
-  const doctor = await rec.findOne({ _id: doctorid });
+  const doctor = await Doctor.findOne({ _id: doctorid });
   if (!doctor) {
-    return res.status(404).json({ success: false, msg: 'Doctor not found' });
+    return res.status(404).json({ success: false, msg: "Doctor not found" });
   }
   if (doctor.doctorstatus === "block") {
     return res.status(403).json({ success: false, msg: "This doctor is unavailable for booking." });
@@ -152,20 +184,31 @@ exports.bookSlot = async (req, res) => {
   const cost = CREDIT_COSTS.slotBooking;
   try {
     const result = await connection.transaction(async (session) => {
-      const existing = await rec5.exists({ userid: String(user._id), date }).session(session);
+      const existing = await Appointment.exists({ userid: String(user._id), date }).session(session);
       if (existing) return { status: 409, msg: "You already have an appointment on this date." };
-      const taken = await rec5.exists({ doctorid, date, time }).session(session);
+      const taken = await Appointment.exists({ doctorid, date, time }).session(session);
       if (taken) return { status: 409, msg: "This slot was just taken. Please choose another." };
-      const backing = await Payment.findOneAndUpdate({
-        ...bookingPaymentFilter(),
-        user: user._id,
-        bookingCreditsRemaining: { $gte: cost },
-      }, { $inc: { bookingCreditsRemaining: -cost } }, { sort: { createdAt: 1, _id: 1 }, session });
-      if (!backing) return { status: 402, msg: `Booking requires ${cost} consultation credits.` };
-      const appointment = new rec5({
-        userid: String(user._id), name: user.name, email: user.email,
-        doctorid, doctormail: doctor.email, description: description.trim(), date, time,
-        payoutFeePaise: backing.liveFunding ? DOCTOR_FEE_PAISE : 0, payoutFundingPayment: backing._id,
+      const payment = await Payment.findOneAndUpdate(
+        {
+          ...bookingPaymentFilter(),
+          user: user._id,
+          bookingCreditsRemaining: { $gte: cost },
+        },
+        { $inc: { bookingCreditsRemaining: -cost } },
+        { sort: { createdAt: 1, _id: 1 }, session }
+      );
+      if (!payment) return { status: 402, msg: `Booking requires ${cost} consultation credits.` };
+      const appointment = new Appointment({
+        userid: String(user._id),
+        name: user.name,
+        email: user.email,
+        doctorid,
+        doctormail: doctor.email,
+        description: description.trim(),
+        date,
+        time,
+        payoutFeePaise: payment.liveFunding ? DOCTOR_FEE_PAISE : 0,
+        payoutFundingPayment: payment._id,
       });
       await appointment.save({ session });
       return { status: 201, msg: "Appointment booked successfully!" };
@@ -173,7 +216,10 @@ exports.bookSlot = async (req, res) => {
     return res.status(result.status).json({ success: result.status === 201, msg: result.msg });
   } catch (err) {
     if (err.code === 11000) {
-      return res.status(409).json({ success: false, msg: "The slot or date is no longer available. No consultation credits were used." });
+      return res.status(409).json({
+        success: false,
+        msg: "The slot or date is no longer available. No consultation credits were used.",
+      });
     }
     throw err;
   }
@@ -186,7 +232,7 @@ exports.updateBriefingSharing = async (req, res) => {
     return res.status(400).json({ msg: "Invalid sharing request." });
   }
 
-  const result = await rec5.updateOne(
+  const result = await Appointment.updateOne(
     { _id: appointmentId, userid: String(req.user._id) },
     { $set: { shareBriefingRecords } }
   );
@@ -201,8 +247,10 @@ exports.getBriefing = async (req, res) => {
     return res.status(404).json({ msg: "Appointment not found." });
   }
 
-  const appointment = await rec5.findOne({ _id: appointmentId, doctorid: String(req.doctor._id) })
-    .select("description userid shareBriefingRecords").lean();
+  const appointment = await Appointment
+    .findOne({ _id: appointmentId, doctorid: String(req.doctor._id) })
+    .select("description userid shareBriefingRecords")
+    .lean();
   if (!appointment) return res.status(404).json({ msg: "Appointment not found." });
 
   const briefing = {
@@ -218,12 +266,17 @@ exports.getBriefing = async (req, res) => {
   const endDate = addDays(today, -1);
   const [reports, doses] = await Promise.all([
     Report.find({ user: appointment.userid })
-      .select("title summary fileUrl createdAt").sort({ createdAt: -1 }).limit(5).lean(),
+      .select("title summary fileUrl createdAt")
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean(),
     DoseLog.find({
       user: appointment.userid,
       date: { $gte: startDate, $lte: endDate },
       status: { $in: ["taken", "skipped"] },
-    }).select("status -_id").lean(),
+    })
+      .select("status -_id")
+      .lean(),
   ]);
 
   const taken = doses.filter((dose) => dose.status === "taken").length;

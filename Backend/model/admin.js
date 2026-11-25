@@ -1,8 +1,9 @@
-let mongo=require("mongoose");
-let adminmodel=mongo.Schema({
-   email:{type:String, unique:true, index:true},
-   password:{type:String},
-   contact:{type:Number},
+let mongo = require("mongoose");
 
+let adminmodel = mongo.Schema({
+  email: { type: String, unique: true, index: true },
+  password: { type: String },
+  contact: { type: Number },
 });
-module.exports=mongo.model('admin',adminmodel);
+
+module.exports = mongo.model("admin", adminmodel);

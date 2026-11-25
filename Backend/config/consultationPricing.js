@@ -14,12 +14,26 @@ function bookingPaymentFilter() {
 function maxFeeForPayment(amountPaise, credits, providerFeePaise) {
   const visits = credits / BOOKING_CREDITS;
   if (!Number.isSafeInteger(visits) || visits < 1) return 0;
-  if (!Number.isSafeInteger(amountPaise) || amountPaise < credits * CONSULTATION_CREDIT_PRICE_PAISE) return 0;
+
+  if (!Number.isSafeInteger(amountPaise) || amountPaise < credits * CONSULTATION_CREDIT_PRICE_PAISE)
+    return 0;
 
   const estimatedGatewayFee = Math.ceil(amountPaise / 20);
-  const gatewayFee = Number.isSafeInteger(providerFeePaise) ? Math.max(estimatedGatewayFee, providerFeePaise) : estimatedGatewayFee;
+
+  const gatewayFee = Number.isSafeInteger(providerFeePaise)
+    ? Math.max(estimatedGatewayFee, providerFeePaise)
+    : estimatedGatewayFee;
+
   const requiredFunding = visits * (DOCTOR_FEE_PAISE + PLATFORM_RESERVE_PER_VISIT_PAISE);
+
   return amountPaise - gatewayFee >= requiredFunding ? DOCTOR_FEE_PAISE : 0;
 }
 
-module.exports = { BOOKING_CREDITS, CONSULTATION_CREDIT_PRICE_PAISE, DOCTOR_FEE_PAISE, maxFeeForPayment, usablePayment, bookingPaymentFilter };
+module.exports = {
+  BOOKING_CREDITS,
+  CONSULTATION_CREDIT_PRICE_PAISE,
+  DOCTOR_FEE_PAISE,
+  maxFeeForPayment,
+  usablePayment,
+  bookingPaymentFilter,
+};

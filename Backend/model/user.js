@@ -1,62 +1,65 @@
 let mongo = require("mongoose");
 
-let usermodel = mongo.Schema({
-   email: { type: String, unique: true, index: true },
-   password: { type: String },
-   name: { type: String },
-   contact: { type: Number },
-   address: { type: String },
+let usermodel = mongo.Schema(
+  {
+    email: { type: String, unique: true, index: true },
+    password: { type: String },
+    name: { type: String },
+    contact: { type: Number },
+    address: { type: String },
 
-   userstatus: {
+    userstatus: {
       type: String,
       default: "unblock",
-      enum: ["block", "unblock"]
-   },
+      enum: ["block", "unblock"],
+    },
 
-   gender: {
+    gender: {
       type: String,
       default: null,
-      enum: ["male", "female", "other"]
-   },
-   dob: { type: Date, default: null },
+      enum: ["male", "female", "other"],
+    },
+    dob: { type: Date, default: null },
 
-   fatherName: { type: String, default: null },
-   motherName: { type: String, default: null },
+    fatherName: { type: String, default: null },
+    motherName: { type: String, default: null },
 
-   maritalStatus: {
+    maritalStatus: {
       type: String,
       default: null,
-      enum: ["single", "married", "other", null]
-   },
+      enum: ["single", "married", "other", null],
+    },
 
-   nationality: { type: String, default: null },
+    nationality: { type: String, default: null },
 
-   bloodGroup: {
+    bloodGroup: {
       type: String,
       default: null,
-   },
+    },
 
-   emergencyContactName: { type: String, default: null },
-   emergencyContactNumber: { type: Number, default: null },
-   emergencyRelation: { type: String, default: null },
+    emergencyContactName: { type: String, default: null },
+    emergencyContactNumber: { type: Number, default: null },
+    emergencyRelation: { type: String, default: null },
 
-   emergencyContacts: {
-      type: [{
-         name: { type: String, required: true, trim: true },
-         phone: { type: String, required: true },
-         relation: { type: String, default: null, trim: true },
-      }],
+    emergencyContacts: {
+      type: [
+        {
+          name: { type: String, required: true, trim: true },
+          phone: { type: String, required: true },
+          relation: { type: String, default: null, trim: true },
+        },
+      ],
       default: [],
-   },
+    },
 
-   image: {
+    image: {
       type: String,
-      default: null
-   },
+      default: null,
+    },
 
+    credits: { type: Number, min: 0 },
+  },
+  { timestamps: true }
+);
 
-   credits: { type: Number, min: 0 },
-
-}, { timestamps: true });
-
-module.exports = mongo.model('user', usermodel);
+module.exports = mongo.model("user", usermodel);

@@ -1,6 +1,9 @@
 const User = require("../model/user");
 const CreditTransaction = require("../model/creditTransaction");
-const { BOOKING_CREDITS, CONSULTATION_CREDIT_PRICE_PAISE } = require("../config/consultationPricing");
+const {
+  BOOKING_CREDITS,
+  CONSULTATION_CREDIT_PRICE_PAISE,
+} = require("../config/consultationPricing");
 
 const WELCOME_CREDITS = 30;
 
@@ -17,7 +20,7 @@ const CREDIT_PACKS = [
   { id: "starter", name: "Starter", credits: 100, aiCredits: 10 },
   { id: "plus", name: "Plus", credits: 300, aiCredits: 30 },
   { id: "pro", name: "Pro", credits: 1000, aiCredits: 100 },
-].map((pack) => ({ ...pack, price: pack.credits * CONSULTATION_CREDIT_PRICE_PAISE / 100 }));
+].map((pack) => ({ ...pack, price: (pack.credits * CONSULTATION_CREDIT_PRICE_PAISE) / 100 }));
 
 function findPack(packId) {
   return CREDIT_PACKS.find((pack) => pack.id === packId) || null;
@@ -31,13 +34,18 @@ async function giveWelcomeBonus(userId, session = null) {
   );
 
   if (result.modifiedCount === 1) {
-    await CreditTransaction.create([{
-      user: userId,
-      type: "credit",
-      amount: WELCOME_CREDITS,
-      reason: "Welcome bonus",
-      balanceAfter: WELCOME_CREDITS,
-    }], { session });
+    await CreditTransaction.create(
+      [
+        {
+          user: userId,
+          type: "credit",
+          amount: WELCOME_CREDITS,
+          reason: "Welcome bonus",
+          balanceAfter: WELCOME_CREDITS,
+        },
+      ],
+      { session }
+    );
   }
 }
 
@@ -81,14 +89,16 @@ async function addCredits(userId, amount, reason, orderId = null, session = null
   );
 
   await CreditTransaction.create(
-    [{
-      user: userId,
-      type: "credit",
-      amount: amount,
-      reason: reason,
-      balanceAfter: user.credits,
-      orderId: orderId,
-    }],
+    [
+      {
+        user: userId,
+        type: "credit",
+        amount: amount,
+        reason: reason,
+        balanceAfter: user.credits,
+        orderId: orderId,
+      },
+    ],
     { session: session }
   );
 
@@ -96,7 +106,12 @@ async function addCredits(userId, amount, reason, orderId = null, session = null
 }
 
 function notEnoughCreditsMsg(cost, featureName) {
-  return featureName + " costs " + cost + " credits. You don't have enough credits. Buy more on the Credits page.";
+  return (
+    featureName +
+    " costs " +
+    cost +
+    " credits. You don't have enough credits. Buy more on the Credits page."
+  );
 }
 
 module.exports = {

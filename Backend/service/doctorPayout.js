@@ -68,7 +68,6 @@ async function balances(doctorId, session = null) {
 }
 
 function lockDoctor(doctorId, session) {
-  // Concurrent payout changes for this doctor must write the same document.
   return Doctor.updateOne({ _id: doctorId }, { $inc: { payoutRevision: 1 } }, { session });
 }
 

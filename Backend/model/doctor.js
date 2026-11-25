@@ -1,58 +1,58 @@
-let mongo=require("mongoose");
-let doctormodel=mongo.Schema({
-   email:{type:String, unique:true, index:true},
-   password:{type:String},
-   name:{type:String},
-   specialization:{type:String},
-   contact:{type:Number},
-   address:{type:String},
-   gender: {
-      type: String,
-      enum: ["Male", "Female", "Other"],
-      default: null,
-    },
-    dateOfBirth: {
-      type: Date,
-      default: null,
-    },
+let mongo = require("mongoose");
 
-    title: { type: String, default: null },
-        institution: { type: String, default: null },
-        year: { type: Number, default: 0 },
+let doctormodel = mongo.Schema({
+  email: { type: String, unique: true, index: true },
+  password: { type: String },
+  name: { type: String },
+  specialization: { type: String },
+  contact: { type: Number },
+  address: { type: String },
+  gender: {
+    type: String,
+    enum: ["Male", "Female", "Other"],
+    default: null,
+  },
+  dateOfBirth: {
+    type: Date,
+    default: null,
+  },
 
-    experienceYears: {
-      type: Number,
-      default: 0,
-    },
+  title: { type: String, default: null },
+  institution: { type: String, default: null },
+  year: { type: Number, default: 0 },
 
-    hospitalName: {
-      type: String,
-      default: null,
-    },
-    HospitalAddress: {
-      type: String,
-      default: null,
-    },
+  experienceYears: {
+    type: Number,
+    default: 0,
+  },
 
-    bio: {
-      type: String,
-      default: null,
-    },
+  hospitalName: {
+    type: String,
+    default: null,
+  },
+  HospitalAddress: {
+    type: String,
+    default: null,
+  },
 
-    image: {
-      type: String,
-      default: null,
-    },
+  bio: {
+    type: String,
+    default: null,
+  },
 
-    doctorstatus:{type:String , default:"unblock" , enum:["block","unblock"]},
-   payoutRevision: { type: Number, default: 0, select: false },
+  image: {
+    type: String,
+    default: null,
+  },
 
-    location: {
+  doctorstatus: { type: String, default: "unblock", enum: ["block", "unblock"] },
+  payoutRevision: { type: Number, default: 0, select: false },
 
-      type: { type: String, enum: ["Point"] },
-      coordinates: { type: [Number], default: undefined },
-    },
-
+  location: {
+    type: { type: String, enum: ["Point"] },
+    coordinates: { type: [Number], default: undefined },
+  },
 });
 doctormodel.index({ location: "2dsphere" });
-module.exports=mongo.model('doctor',doctormodel);
+
+module.exports = mongo.model("doctor", doctormodel);

@@ -9,7 +9,6 @@ let messageSchema = new mongo.Schema(
   { _id: false }
 );
 
-
 let reportSchema = new mongo.Schema(
   {
     user: { type: mongo.Schema.Types.ObjectId, ref: "user", required: true },

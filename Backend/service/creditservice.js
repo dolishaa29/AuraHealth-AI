@@ -259,7 +259,6 @@ exports.razorpayWebhook=async(req,res)=>
     if (event === "refund.created" || event === "refund.processed" || event === "payment.dispute.created") {
         const paymentId = payload.refund?.entity?.payment_id || payload.dispute?.entity?.payment_id;
         if (typeof paymentId === "string") {
-            // Fetch the order so a refund arriving before the capture webhook can still block that lot.
             const entity = await getRazorpay().payments.fetch(paymentId);
             await Payment.updateOne({ orderId: entity.order_id, $or: [{ paymentId }, { status: { $ne: "paid" } }] },
                 { $set: { fundingBlocked: true, bookingCreditsRemaining: 0 } });
