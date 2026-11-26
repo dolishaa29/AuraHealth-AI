@@ -1,5 +1,6 @@
 let rec=require("../model/user");
 let rec2=require("../model/Appointment/appointment");
+const CancelledAppointment = require("../model/Appointment/cancelledAppointment");
 let otps=require("../model/OTP");
 let pendingUsers=require("../model/PendingUser");
 let bcrypt=require("bcrypt");
@@ -198,11 +199,12 @@ exports.userDashboard=async(req,res)=>
 }
 
 exports.userviewapp=async(req,res)=>{
-    const user = req.user;
-    console.log("User ID from request:", user._id);
-    let appointments = await rec2.find({ userid: user._id });
-    console.log("Appointments for user:", appointments);
-    return res.status(200).json({ success: true, appointments });
+    const filter = { userid: String(req.user._id) };
+    const [appointments, cancelledAppointments] = await Promise.all([
+        rec2.find(filter),
+        CancelledAppointment.find(filter).sort({ cancelledAt: -1 }),
+    ]);
+    return res.status(200).json({ success: true, appointments, cancelledAppointments });
 };
 
 exports.otpgenerate=async(req,res)=>{

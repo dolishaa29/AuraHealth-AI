@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useCallback, useState, useEffect, useRef } from "react";
 import axios from "axios";
 import Cookies from "js-cookie";
 import { FileText, Upload, Send, Loader2, Bot, Sparkles, ArrowLeft, TrendingUp, Trash2 } from "lucide-react";
+
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const ReportAnalysis = () => {
   const [reports, setReports] = useState([]);
@@ -17,24 +19,23 @@ const ReportAnalysis = () => {
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  const API_BASE_URL = import.meta.env.VITE_API_URL;
   const authHeaders = { Authorization: `Bearer ${Cookies.get("token")}` };
 
-  const fetchReports = async () => {
+  const fetchReports = useCallback(async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/report`, {
-        headers: authHeaders,
+        headers: { Authorization: `Bearer ${Cookies.get("token")}` },
         withCredentials: true,
       });
       setReports(res.data.reports || []);
     } catch (err) {
       console.error(err);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchReports();
-  }, []);
+  }, [fetchReports]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

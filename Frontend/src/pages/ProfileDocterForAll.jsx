@@ -3,6 +3,8 @@ import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Star, Stethoscope, GraduationCap, MessageSquare } from 'lucide-react';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
 const labelClass = "block text-[10px] font-bold text-slate-500 mb-1.5";
 const valueClass = "w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-[20px] text-sm text-slate-700 font-medium";
 
@@ -35,8 +37,6 @@ const ProfileDocterForAll = () => {
   const [error, setError] = useState(null);
   const [ratings, setRatings] = useState([]);
   const [averageRating, setAverageRating] = useState(0);
-
-  const API_BASE_URL = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     const fetchAll = async () => {

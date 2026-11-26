@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import axios from "axios";
 import Cookies from "js-cookie";
 import { useNavigate } from "react-router-dom";
 import { Camera, CheckCircle2, Lock, ShieldAlert, Loader2, Droplet, ChevronRight } from "lucide-react";
+
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const CARD = "bg-white rounded-[28px] p-6 shadow-[0_8px_30px_rgba(79,70,229,0.06)]";
 const inputCls = "w-full h-12 px-4 rounded-[18px] bg-[#F6F6FD] border-2 border-transparent text-sm font-medium text-[#1E1B4B] placeholder:text-[#9A99B5] focus:outline-none focus:border-indigo-300 focus:bg-white disabled:opacity-60";
@@ -25,9 +27,8 @@ const UserProfile = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
-  const API_BASE_URL = import.meta.env.VITE_API_URL;
 
-  const fetchUserProfile = async () => {
+  const fetchUserProfile = useCallback(async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/userprofile`, {
         headers: { Authorization: `Bearer ${Cookies.get("token")}` },
@@ -41,9 +42,9 @@ const UserProfile = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchUserProfile(); }, []);
+  useEffect(() => { fetchUserProfile(); }, [fetchUserProfile]);
 
   const handleChange = (e) => {
     const { name, value, type, files } = e.target;

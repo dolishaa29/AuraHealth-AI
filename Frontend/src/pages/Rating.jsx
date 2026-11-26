@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import { useParams, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
@@ -20,18 +20,18 @@ const Rating = () => {
         ? (data.reduce((acc, r) => acc + r.rating, 0) / data.length).toFixed(1)
         : null;
 
-    const fetchRatings = async () => {
+    const fetchRatings = useCallback(async () => {
         try {
             const response = await axios.get(`${import.meta.env.VITE_API_URL}/viewrating/${doctorId}`);
             setData(response.data.data || []);
         } catch (error) {
             console.log(error);
         }
-    };
+    }, [doctorId]);
 
     useEffect(() => {
         if (doctorId) fetchRatings();
-    }, [doctorId]);
+    }, [doctorId, fetchRatings]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();

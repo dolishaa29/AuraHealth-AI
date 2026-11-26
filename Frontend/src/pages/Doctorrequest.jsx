@@ -17,22 +17,25 @@ const DoctorRequest = () => {
   const [approving, setApproving]     = useState(null);
   const [rejecting, setRejecting]     = useState(false);
 
-  useEffect(() => { fetchDoctors(); }, []);
   useEffect(() => { setPage(1); }, [type, searchTerm]);
 
   const showToast = (message, t = "success") => setToast({ message, type: t });
 
-  const fetchDoctors = async () => {
-    setLoading(true);
-    try {
-      const res = await axios.get(import.meta.env.VITE_API_URL + "/doctorrequest");
-      setDoctors(res.data.doctors || res.data || []);
-    } catch {
-      showToast("Failed to load requests", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      setLoading(true);
+      try {
+        const res = await axios.get(import.meta.env.VITE_API_URL + "/doctorrequest");
+        setDoctors(res.data.doctors || res.data || []);
+      } catch {
+        setToast({ message: "Failed to load requests", type: "error" });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDoctors();
+  }, []);
 
   const handleApprove = async (doc) => {
     setApproving(doc._id);

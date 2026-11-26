@@ -15,8 +15,8 @@ function isAuthorized(appointment, socket) {
 }
 
 function hasMeetingStarted(appointment) {
-    const scheduledAt = new Date(`${appointment.date}T${appointment.time}`);
-    return Date.now() >= scheduledAt.getTime();
+    const scheduledAt = Date.parse(`${appointment.date}T${appointment.time}:00+05:30`);
+    return Date.now() >= scheduledAt;
 }
 
 async function leaveCurrentRoom(io, socket) {

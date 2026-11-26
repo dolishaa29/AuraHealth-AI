@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { Video, VideoOff, Camera, Scan, Loader2, Sparkles } from 'lucide-react';
 import Cookies from 'js-cookie';
 import VoiceInput, { VoiceLanguage } from '../components/VoiceInput';
@@ -147,7 +147,7 @@ const LiveCapture = () => {
     }
   };
 
-  const stopCamera = () => {
+  const stopCamera = useCallback(() => {
     clearInterval(intervalRef.current);
     clearInterval(analysisTimerRef.current);
     clearTimeout(firstAnalysisRef.current);
@@ -164,7 +164,7 @@ const LiveCapture = () => {
     videoRef.current.srcObject = null;
     setIsStreaming(false);
     setFrameCount(0);
-  };
+  }, [updateMeasuring]);
 
   useEffect(() => {
     if (!sessionEndsAt) return;
@@ -182,7 +182,7 @@ const LiveCapture = () => {
     tick();
     const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
-  }, [sessionEndsAt]);
+  }, [sessionEndsAt, stopCamera]);
 
   useEffect(() => {
     return () => {

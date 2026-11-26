@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useCallback, useEffect, useState, useMemo } from "react";
 import axios from "axios";
 import Cookies from "js-cookie";
 import { Loader2, CalendarCheck } from "lucide-react";
@@ -22,12 +22,11 @@ const ViewAppointment = () => {
   const [submitting, setSubmitting]           = useState(false);
   const [toast, setToast]                     = useState(null);
 
-  useEffect(() => { fetchAppointments(); }, []);
   useEffect(() => { setPage(1); }, [type, searchTerm]);
 
   const showToast = (message, t = "success") => setToast({ message, type: t });
 
-  const fetchAppointments = async () => {
+  const fetchAppointments = useCallback(async () => {
     setLoading(true);
     try {
       const res = await axios.get(import.meta.env.VITE_API_URL + "/viewappointment", {
@@ -36,11 +35,13 @@ const ViewAppointment = () => {
       });
       setAppointments(res.data.appointments);
     } catch {
-      showToast("Failed to load appointments", "error");
+      setToast({ message: "Failed to load appointments", type: "error" });
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => { fetchAppointments(); }, [fetchAppointments]);
 
   const openApproveModal = (app) => { setSelected(app); setDate(""); setTime(""); setShowModal(true); };
   const openRejectModal  = (app) => { setSelected(app); setShowRejectModal(true); };

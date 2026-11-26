@@ -74,7 +74,7 @@ A telemedicine platform that connects patients with doctors. Patients can book a
 | AI | Google Gemini API through `@google/generative-ai`, configured to use `gemini-2.5-flash` |
 | File storage and email | Cloudinary SDK and streamifier for uploads, Nodemailer with Gmail SMTP for account emails, reminders and admin notifications |
 | Maps and payments | OpenStreetMap tiles and Overpass hospital data, Nominatim for place lookup, OSRM for road distances and routes, Google Maps directions links, Razorpay SDK and Checkout for orders and payments |
-| Build and operations | npm lockfiles and `npm ci`, Nodemon for backend development, ESLint with React Hooks and React Refresh rules, GitHub Actions for checks, Vercel for frontend hosting, AWS EC2 with Docker Compose and Nginx for the API |
+| Build and operations | npm lockfiles and `npm ci`, Node.js watch mode for backend development, ESLint with React Hooks and React Refresh rules, GitHub Actions for checks, Vercel for frontend hosting, AWS EC2 with Docker Compose and Nginx for the API |
 
 ## How It Works
 

@@ -12,6 +12,7 @@ let app = mongo.Schema({
   shareBriefingRecords: { type: Boolean, default: false },
   payoutFeePaise: { type: Number, default: 0, min: 0 },
   payoutFundingPayment: { type: mongo.Schema.Types.ObjectId, ref: "payment", select: false },
+  bookingCreditsSpent: { type: Number, min: 1, select: false },
   payoutCompletedAt: Date,
   payoutDeclinedAt: Date,
   payoutHeld: { type: Boolean, default: false },

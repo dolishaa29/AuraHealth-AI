@@ -18,23 +18,25 @@ const ViewDoctors = () => {
   const [deleting, setDeleting]         = useState(false);
   const [blocking, setBlocking]         = useState(null);
 
-  useEffect(() => { fetchDoctors(); }, []);
-
   useEffect(() => { setPage(1); }, [searchTerm]);
 
   const showToast = (message, type = "success") => setToast({ message, type });
 
-  const fetchDoctors = async () => {
-    setLoading(true);
-    try {
-      const res = await axios.get(import.meta.env.VITE_API_URL + "/viewdoctors");
-      setDoctors(res.data.doctors || []);
-    } catch {
-      showToast("Failed to load doctors", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      setLoading(true);
+      try {
+        const res = await axios.get(import.meta.env.VITE_API_URL + "/viewdoctors");
+        setDoctors(res.data.doctors || []);
+      } catch {
+        setToast({ message: "Failed to load doctors", type: "error" });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDoctors();
+  }, []);
 
   const handleDelete = async () => {
     setDeleting(true);

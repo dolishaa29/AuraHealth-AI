@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import L from "leaflet";
@@ -171,8 +171,10 @@ const NearbyHospitals = () => {
     }
   };
 
+  const searchFromLocation = useEffectEvent((point) => search(point));
+
   useEffect(() => {
-    if (position) search(position);
+    if (position) searchFromLocation(position);
   }, [position]);
 
   return (

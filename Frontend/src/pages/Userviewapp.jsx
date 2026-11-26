@@ -5,11 +5,12 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Video, MessageCircle, Star, CalendarCheck, Loader2 } from 'lucide-react';
 import { formatTime } from '../utils/time';
 import MedicineChanges from '../components/MedicineChanges';
+import CancelledAppointments from '../components/CancelledAppointments';
 
 const CARD = "bg-white rounded-[28px] shadow-[0_8px_30px_rgba(79,70,229,0.06)]";
 const API = import.meta.env.VITE_API_URL;
 const authConfig = () => ({ headers: { Authorization: `Bearer ${Cookies.get("token")}` }, withCredentials: true });
-const when = (a) => new Date(`${a.date}T${a.time}`);
+const when = (a) => new Date(`${a.date}T${a.time}:00+05:30`);
 const dateBits = (a) => {
   const d = new Date(a.date);
   return {
@@ -22,6 +23,7 @@ const dateBits = (a) => {
 const Userviewapp = () => {
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
+  const [cancelledAppointments, setCancelledAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('upcoming');
   const [now] = useState(() => Date.now());
@@ -31,7 +33,10 @@ const Userviewapp = () => {
   useEffect(() => {
     axios
       .get(`${API}/userviewapp`, authConfig())
-      .then((res) => setAppointments(res.data.appointments || []))
+      .then(({ data }) => {
+        setAppointments(data.appointments || []);
+        setCancelledAppointments(data.cancelledAppointments || []);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -89,7 +94,7 @@ const Userviewapp = () => {
         </div>
 
         <div role="tablist" aria-label="Appointments" className="self-start inline-flex gap-1 p-1.5 rounded-full bg-white shadow-[0_8px_30px_rgba(79,70,229,0.06)]">
-          {[['upcoming', `Upcoming · ${upcoming.length}`], ['past', `Past · ${past.length}`]].map(([id, label]) => (
+          {[['upcoming', `Upcoming · ${upcoming.length}`], ['past', `Past · ${past.length}`], ['cancelled', `Cancelled · ${cancelledAppointments.length}`]].map(([id, label]) => (
             <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
               className={`h-10 px-5 rounded-full text-sm font-bold ${tab === id ? 'bg-indigo-600 text-white' : 'text-[#4B4A6B] hover:text-indigo-600'}`}>
               {label}
@@ -100,7 +105,9 @@ const Userviewapp = () => {
         {sharingError && <p role="alert" className="text-sm text-[#B42318]">{sharingError}</p>}
         {loading ? (
           <div className="flex items-center gap-2 text-[#6B6A8A] text-sm"><Loader2 size={16} className="animate-spin" /> Loading…</div>
-        ) : appointments.length === 0 ? (
+        ) : tab === 'cancelled' ? (
+          <CancelledAppointments appointments={cancelledAppointments} />
+        ) : appointments.length === 0 && cancelledAppointments.length === 0 ? (
           <section className={`${CARD} p-10 text-center`}>
             <span className="mx-auto mb-4 w-16 h-16 rounded-full bg-[#EEEDFF] text-indigo-600 flex items-center justify-center"><CalendarCheck size={28} /></span>
             <h2 className="text-xl font-extrabold">No appointments yet</h2>
@@ -163,6 +170,7 @@ const Userviewapp = () => {
             )}
 
             {tab === 'past' && past.length === 0 && <p className="text-sm text-[#6B6A8A]">No past visits yet.</p>}
+            {tab === 'upcoming' && !next && <p className="text-sm text-[#6B6A8A]">No upcoming visits.</p>}
           </>
         )}
       </div>

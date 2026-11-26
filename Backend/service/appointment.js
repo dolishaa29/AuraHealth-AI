@@ -1,5 +1,6 @@
 const AppointmentRequest = require("../model/Appointment/appointrequest");
 const Appointment = require("../model/Appointment/appointment");
+const CancelledAppointment = require("../model/Appointment/cancelledAppointment");
 const Doctor = require("../model/doctor");
 const Report = require("../model/report");
 const { connection, isValidObjectId } = require("mongoose");
@@ -209,6 +210,7 @@ exports.bookSlot = async (req, res) => {
         time,
         payoutFeePaise: payment.liveFunding ? DOCTOR_FEE_PAISE : 0,
         payoutFundingPayment: payment._id,
+        bookingCreditsSpent: cost,
       });
       await appointment.save({ session });
       return { status: 201, msg: "Appointment booked successfully!" };
@@ -223,6 +225,54 @@ exports.bookSlot = async (req, res) => {
     }
     throw err;
   }
+};
+
+exports.cancelAppointment = async (req, res) => {
+  const { appointmentId } = req.params;
+  if (!isValidObjectId(appointmentId)) {
+    return res.status(400).json({ msg: "Invalid appointment ID." });
+  }
+
+  const filter = { _id: appointmentId, doctorid: String(req.doctor._id) };
+  const result = await connection.transaction(async (session) => {
+    const appointment = await Appointment.findOne(filter)
+      .select("+payoutFundingPayment +bookingCreditsSpent")
+      .session(session)
+      .lean();
+    if (!appointment) {
+      const cancellation = await CancelledAppointment.findOne(filter).session(session).lean();
+      return cancellation ? { cancellation } : { status: 404, msg: "Appointment not found." };
+    }
+
+    const { userid, doctorid, name, email, doctormail, date, time, payoutFundingPayment, bookingCreditsSpent } = appointment;
+    const cancelledAt = new Date();
+    const scheduledAt = Date.parse(`${date}T${time}:00+05:30`);
+    if (!Number.isFinite(scheduledAt) || scheduledAt <= cancelledAt.getTime() ||
+        appointment.payoutCompletedAt || appointment.payoutDeclinedAt) {
+      return { status: 409, msg: "Only appointments that have yet to start can be cancelled." };
+    }
+
+    await Appointment.deleteOne(filter, { session });
+    let refundedCredits = 0;
+    if (payoutFundingPayment) {
+      const amount = bookingCreditsSpent ?? CREDIT_COSTS.slotBooking;
+      const refund = await Payment.updateOne(
+        { _id: payoutFundingPayment, user: userid, status: "paid", fundingBlocked: { $ne: true } },
+        { $inc: { bookingCreditsRemaining: amount } },
+        { session }
+      );
+      if (refund.modifiedCount === 1) refundedCredits = amount;
+    }
+
+    const [cancellation] = await CancelledAppointment.create(
+      [{ _id: appointment._id, userid, doctorid, name, email, doctormail, date, time, cancelledAt, refundedCredits }],
+      { session }
+    );
+    return { cancellation };
+  });
+
+  if (!result.cancellation) return res.status(result.status).json({ msg: result.msg });
+  return res.json({ success: true, cancellation: result.cancellation });
 };
 
 exports.updateBriefingSharing = async (req, res) => {

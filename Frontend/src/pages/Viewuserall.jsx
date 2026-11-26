@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
 const Viewuserall = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -11,30 +13,35 @@ const Viewuserall = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const API_BASE_URL = import.meta.env.VITE_API_URL;
-
-  const fetchUser = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/userbyid/${id}`);
-      const data = response.data.user;
-
-      setUser(data);
-
-      if (data?.image) {
-        const filename = data.image.split(/[\\/]/).pop();
-        setImagePreview(`${API_BASE_URL}/images/${filename}`);
-      }
-    } catch (err) {
-      console.error("Error fetching user:", err);
-      setError(err.response?.data?.message || "Failed to load user profile.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const controller = new AbortController();
+
+    const fetchUser = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        setImagePreview(null);
+        const response = await axios.get(`${API_BASE_URL}/userbyid/${id}`, { signal: controller.signal });
+        if (controller.signal.aborted) return;
+        const data = response.data.user;
+
+        setUser(data);
+
+        if (data?.image) {
+          const filename = data.image.split(/[\\/]/).pop();
+          setImagePreview(`${API_BASE_URL}/images/${filename}`);
+        }
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        console.error("Error fetching user:", err);
+        setError(err.response?.data?.message || "Failed to load user profile.");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    };
+
     fetchUser();
+    return () => controller.abort();
   }, [id]);
 
   const infoLabelStyle = "block text-[13px] font-bold text-slate-500 mb-1 ml-1";

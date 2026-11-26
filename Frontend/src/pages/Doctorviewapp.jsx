@@ -5,13 +5,15 @@ import { useNavigate } from "react-router-dom";
 import { Video, MessageCircle, Sparkles, Loader2, CalendarCheck, Mail } from "lucide-react";
 import { formatDate, formatTime } from "../utils/time";
 import MedicineChanges from "../components/MedicineChanges";
+import CancelledAppointments from "../components/CancelledAppointments";
+import { ConfirmModal } from "../components/AdminUI";
 
 const API = import.meta.env.VITE_API_URL;
 const authConfig = () => ({ headers: { Authorization: `Bearer ${Cookies.get("emstoken")}` }, withCredentials: true });
 const CARD = "bg-white rounded-[28px] shadow-[0_8px_30px_rgba(79,70,229,0.06)]";
 const AVATARS = ["bg-[#FFF0E6] text-[#9A3412]", "bg-[#E6F1FF] text-[#1E40AF]", "bg-[#E7F7EF] text-[#05603A]", "bg-[#EEEDFF] text-[#3730A3]", "bg-[#FFECEB] text-[#B42318]"];
 
-const when = (a) => new Date(`${a.date}T${a.time}`);
+const when = (a) => new Date(`${a.date}T${a.time}:00+05:30`);
 const initials = (name = "") => name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "P";
 const dateBits = (a) => {
   const d = new Date(a.date);
@@ -21,6 +23,10 @@ const dateBits = (a) => {
 const Doctorviewapp = () => {
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
+  const [cancelledAppointments, setCancelledAppointments] = useState([]);
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState("");
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("upcoming");
   const [now] = useState(() => Date.now());
@@ -29,7 +35,10 @@ const Doctorviewapp = () => {
 
   useEffect(() => {
     axios.get(`${API}/doctorviewapp`, authConfig())
-      .then((res) => setAppointments(res.data.appointments || []))
+      .then(({ data }) => {
+        setAppointments(data.appointments || []);
+        setCancelledAppointments(data.cancelledAppointments || []);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -56,6 +65,31 @@ const Doctorviewapp = () => {
   const canStart = (a) => now >= when(a).getTime() - 10 * 60 * 1000;
   const next = upcoming[0];
   const list = tab === "upcoming" ? upcoming.slice(1) : past;
+
+  const cancelAppointment = async () => {
+    setCancelling(true);
+    setCancelError("");
+    try {
+      const { data } = await axios.put(`${API}/appointment/${cancelTarget._id}/cancel`, null, authConfig());
+      const { cancellation } = data;
+      setAppointments((items) => items.filter((item) => item._id !== cancellation._id));
+      setCancelledAppointments((items) => [cancellation, ...items.filter((item) => item._id !== cancellation._id)]);
+      setBriefingId(null);
+      setCancelTarget(null);
+      setTab("cancelled");
+    } catch (error) {
+      setCancelError(error.response?.data?.msg || "Couldn't cancel the appointment. Please try again.");
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const cancelButton = (appointment) => when(appointment).getTime() > now && (
+    <button type="button" onClick={() => { setCancelError(""); setCancelTarget(appointment); }}
+      className="h-10 px-4 rounded-full bg-white text-[#B42318] text-sm font-bold">
+      Cancel appointment
+    </button>
+  );
 
   const toggleBriefing = (appointmentId) => {
     setBriefing(null);
@@ -115,7 +149,7 @@ const Doctorviewapp = () => {
         </div>
 
         <div role="tablist" aria-label="Appointments" className="self-start inline-flex gap-1 p-1.5 rounded-full bg-white shadow-[0_8px_30px_rgba(79,70,229,0.06)]">
-          {[["upcoming", `Upcoming · ${upcoming.length}`], ["past", `Past · ${past.length}`]].map(([id, label]) => (
+          {[["upcoming", `Upcoming · ${upcoming.length}`], ["past", `Past · ${past.length}`], ["cancelled", `Cancelled · ${cancelledAppointments.length}`]].map(([id, label]) => (
             <button key={id} role="tab" aria-selected={tab === id} onClick={() => { setTab(id); setBriefingId(null); }}
               className={`h-10 px-5 rounded-full text-sm font-bold ${tab === id ? "bg-indigo-600 text-white" : "text-[#4B4A6B] hover:text-indigo-600"}`}>{label}</button>
           ))}
@@ -123,7 +157,9 @@ const Doctorviewapp = () => {
 
         {loading ? (
           <div className="flex items-center gap-2 text-[#6B6A8A] text-sm"><Loader2 size={16} className="animate-spin" /> Loading…</div>
-        ) : appointments.length === 0 ? (
+        ) : tab === "cancelled" ? (
+          <CancelledAppointments appointments={cancelledAppointments} doctor />
+        ) : appointments.length === 0 && cancelledAppointments.length === 0 ? (
           <section className={`${CARD} p-10 text-center`}>
             <span className="mx-auto mb-4 w-16 h-16 rounded-full bg-[#EEEDFF] text-indigo-600 flex items-center justify-center"><CalendarCheck size={28} /></span>
             <h2 className="text-xl font-extrabold">No appointments yet</h2>
@@ -152,6 +188,7 @@ const Doctorviewapp = () => {
                   </button>
                   <button onClick={() => toggleBriefing(next._id)} aria-expanded={briefingId === next._id} className="h-12 px-5 rounded-full bg-white text-[#312E81] text-[15px] font-bold flex items-center gap-2"><Sparkles size={17} /> {briefingId === next._id ? "Hide brief" : "Visit brief"}</button>
                   <button onClick={() => navigate("/doctorchat")} className="h-12 px-5 rounded-full bg-white text-[#312E81] text-[15px] font-bold flex items-center gap-2"><MessageCircle size={17} /> Message</button>
+                  {cancelButton(next)}
                 </div>
                 <div className="relative w-full">{briefingBox(next)}</div>
                 <MedicineChanges appointment={next} doctor canPublish={now >= when(next).getTime()} />
@@ -177,6 +214,7 @@ const Doctorviewapp = () => {
                       <button onClick={() => toggleBriefing(a._id)} aria-expanded={briefingId === a._id} className="h-10 px-4 rounded-full bg-white text-[#3730A3] text-sm font-bold flex items-center gap-1.5">
                         <Sparkles size={14} /> {briefingId === a._id ? "Hide brief" : "Visit brief"}
                       </button>
+                      {tab === "upcoming" && cancelButton(a)}
                       {briefingBox(a)}
                       <MedicineChanges appointment={a} doctor canPublish={now >= when(a).getTime()} />
                     </div>
@@ -185,9 +223,22 @@ const Doctorviewapp = () => {
               </section>
             )}
             {tab === "past" && past.length === 0 && <p className="text-sm text-[#6B6A8A]">No past visits yet.</p>}
+            {tab === "upcoming" && !next && <p className="text-sm text-[#6B6A8A]">No upcoming visits.</p>}
           </>
         )}
       </div>
+      {cancelTarget && (
+        <ConfirmModal
+          title="Cancel appointment?"
+          message="Any eligible consultation credits used for this booking will return to the patient."
+          confirmLabel="Cancel visit"
+          loading={cancelling}
+          onConfirm={cancelAppointment}
+          onCancel={() => { if (!cancelling) setCancelTarget(null); }}
+        >
+          {cancelError && <p role="alert" className="mt-3 text-sm text-[#B42318]">{cancelError}</p>}
+        </ConfirmModal>
+      )}
     </div>
   );
 };

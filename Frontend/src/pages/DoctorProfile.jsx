@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import axios from "axios";
 import Cookies from "js-cookie";
 import { useNavigate } from "react-router-dom";
 import { Camera, Lock, CheckCircle2, Loader2, ChevronRight, Building2, GraduationCap, Briefcase } from "lucide-react";
+
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const CARD = "bg-white rounded-[28px] p-6 shadow-[0_8px_30px_rgba(79,70,229,0.06)]";
 const inputCls = "w-full h-12 px-4 rounded-[18px] bg-[#F6F6FD] border-2 border-transparent text-sm font-medium text-[#1E1B4B] placeholder:text-[#9A99B5] focus:outline-none focus:border-indigo-300 focus:bg-white disabled:opacity-60";
@@ -25,9 +27,8 @@ const DoctorProfile = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
-  const API_BASE_URL = import.meta.env.VITE_API_URL;
 
-  const fetchDoctorProfile = async () => {
+  const fetchDoctorProfile = useCallback(async () => {
     try {
       const { data } = await axios.get(`${API_BASE_URL}/doctorprofile`, {
         headers: { Authorization: `Bearer ${Cookies.get("emstoken")}` },
@@ -42,9 +43,9 @@ const DoctorProfile = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchDoctorProfile(); }, []);
+  useEffect(() => { fetchDoctorProfile(); }, [fetchDoctorProfile]);
 
   const handleChange = (e) => {
     const { name, value, type, files } = e.target;

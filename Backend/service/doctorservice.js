@@ -1,6 +1,7 @@
 let rec=require("../model/doctor");
 let rec2=require("../model/permission");
 let app=require("../model/Appointment/appointment");
+const CancelledAppointment = require("../model/Appointment/cancelledAppointment");
 let jwt=require("jsonwebtoken");
 let otps=require("../model/OTP");
 let bct=require("bcryptjs");
@@ -277,12 +278,12 @@ exports.doctorDashboard=async(req,res)=>
 }
 
 exports.doctorviewapp=async(req,res)=>{
-    const doctor = req.doctor;
-    console.log("Doctor ID from request:", doctor._id);
-    let appointments = await app.find({ doctorid: doctor._id });
-
-    console.log("Appointments for doctor:", appointments);
-    return res.status(200).json({ success: true, appointments });
+    const filter = { doctorid: String(req.doctor._id) };
+    const [appointments, cancelledAppointments] = await Promise.all([
+        app.find(filter),
+        CancelledAppointment.find(filter).sort({ cancelledAt: -1 }),
+    ]);
+    return res.status(200).json({ success: true, appointments, cancelledAppointments });
 }
 
 exports.doctorupdate = async (req, res) => {

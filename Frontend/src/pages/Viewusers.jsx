@@ -16,22 +16,25 @@ const Viewusers = () => {
   const [toast, setToast]       = useState(null);
   const [blocking, setBlocking] = useState(null);
 
-  useEffect(() => { fetchUsers(); }, []);
   useEffect(() => { setPage(1); }, [searchTerm]);
 
   const showToast = (message, type = "success") => setToast({ message, type });
 
-  const fetchUsers = async () => {
-    setLoading(true);
-    try {
-      const res = await axios.get(import.meta.env.VITE_API_URL + "/viewusers");
-      setUsers(res.data.users || []);
-    } catch {
-      showToast("Failed to load users", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setLoading(true);
+      try {
+        const res = await axios.get(import.meta.env.VITE_API_URL + "/viewusers");
+        setUsers(res.data.users || []);
+      } catch {
+        setToast({ message: "Failed to load users", type: "error" });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, []);
 
   const handleBlock = async (user) => {
     setBlocking(user._id);
